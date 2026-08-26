@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Complaint Management — ByteBack</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body style="margin:0;">
+  <div id="staffShell"></div>
+
+  <script src="js/api.js"></script>
+  <script>
+    const cmStatusMeta = {
+      submitted: { pill: 'gray', label: 'New' },
+      under_review: { pill: 'amber', label: 'Info Requested' },
+      investigating: { pill: 'blue', label: 'Under Investigation' },
+      resolved: { pill: 'green', label: 'Resolved' },
+      closed: { pill: 'gray', label: 'Closed' }
+    };
+    let allComplaints = [];
+    let editingId = null;
+
+    function isOverdue(c) {
+      const days = (Date.now() - c.createdAt) / (1000 * 60 * 60 * 24);
+      return (c.status === 'investigating' || c.status === 'under_review') && days > 14;
+    }
+
+    function render() {
+      const status = document.getElementById('statusFilter').value;
+      const category = document.getElementById('categoryFilter').value;
+      const search = document.getElementById('searchInput').value.toLowerCase();
+
+      let list = allComplaints;
+      if (status) list = list.filter(c => c.status === status);
+      if (category) list = list.filter(c => c.category === category);
+      if (search) list = list.filter(c =>
+        c.referenceNumber.toLowerCase().includes(search) ||
+        (c.submittedBy && c.submittedBy.fullName.toLowerCase().includes(search)) ||
+        (c.submittedBy && c.submittedBy.email.toLowerCase().includes(search))
+      );
+
+      document.querySelector('.staff-topbar p').textContent = `All complaints across the platform — ${allComplaints.length} total`;
+      document.getElementById('paginationLine').textContent = `Showing 1–${list.length} of ${list.length} complaints`;
+
+      const tbody = document.getElementById('tbody');
+      if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="color:#9ca3af; padding:20px 0;">No complaints match this filter.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = list.map(c => {
+        const meta = isOverdue(c) ? { pill: '', label: 'Overdue', custom: 'background:#fbeaea; color:#d1352b;' } : (cmStatusMeta[c.status] || cmStatusMeta.submitted);
+        const isEditing = editingId === c.id;
+        return `
+          <tr data-id="${c.id}">
+            <td>${c.referenceNumber}</td>
+            <td>${categoryLabel(c.category)}</td>
+            <td>${c.submittedBy ? c.submittedBy.fullName : '—'}</td>
+            <td>${c.assignedTo ? c.assignedTo.fullName : 'Unassigned'}</td>
+            <td>${new Date(c.createdAt).toLocaleDateString('en-US',{month:'short',day:'2-digit',year:'numeric'})}</td>
+            <td>
+              ${isEditing ? `
+                <div style="display:flex; gap:6px; align-items:center;">
+                  <select class="editStatusSelect" style="padding:4px 6px; border:1px solid #e5e7eb; border-radius:6px; font-size:11.5px;">
+                    ${Object.keys(cmStatusMeta).map(s => `<option value="${s}" ${s===c.status?'selected':''}>${cmStatusMeta[s].label}</option>`).join('')}
+                  </select>
+                  <button class="saveEditBtn" style="background:#16a34a; color:#fff; border:none; border-radius:6px; padding:4px 8px; font-size:11px; cursor:pointer;">Save</button>
+                </div>
+              ` : `
+                <span class="status-pill ${meta.pill}" style="${meta.custom || ''} cursor:pointer;" data-edit="${c.id}">${meta.label}</span>
+              `}
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      tbody.querySelectorAll('[data-edit]').forEach(el => {
+        el.addEventListener('click', () => { editingId = Number(el.dataset.edit); render(); });
+      });
+      tbody.querySelectorAll('.saveEditBtn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const row = e.target.closest('tr');
+          const newStatus = row.querySelector('.editStatusSelect').value;
+          try {
+            await api.admUpdateComplaint(row.dataset.id, { status: newStatus });
+            editingId = null;
+            await loadAll();
+          } catch (err) {
+            alert(err.message);
+          }
+        });
+      });
+    }
+
+    function exportCsv() {
+      const rows = [['Reference', 'Category', 'Complainant', 'Investigator', 'Filed', 'Status']];
+      allComplaints.forEach(c => rows.push([
+        c.referenceNumber, categoryLabel(c.category), c.submittedBy ? c.submittedBy.fullName : '',
+        c.assignedTo ? c.assignedTo.fullName : 'Unassigned', new Date(c.createdAt).toLocaleDateString(), c.status
+      ]));
+      const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'byteback-complaints.csv';
+      a.click();
+    }
+
+    async function loadAll() {
+      const data = await api.admComplaints();
+      allComplaints = data.complaints;
+      render();
+    }
+
+    (async () => {
+      const me = await renderStaffShell({
+        allowedRoles: ['admin', 'supervisor'],
+        activeHref: 'admin-complaints.html',
+        title: 'Complaint Management',
+        subtitle: 'Loading...'
+      });
+      if (!me) return;
+
+      document.getElementById('staffContent').innerHTML = `
+        <div class="filter-bar">
+          <input id="searchInput" class="filter-search" placeholder="🔍 Search by reference, name, or email" />
+          <select id="categoryFilter" class="filter-select-chip">
+            <option value="">All Categories</option>
+            ${CATEGORIES.map(c => `<option value="${c.key}">${c.label}</option>`).join('')}
+          </select>
+          <select id="statusFilter" class="filter-select-chip">
+            <option value="">All Status</option>
+            ${Object.entries(cmStatusMeta).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}
+          </select>
+          <button id="exportBtn" class="export-btn" style="margin-left:auto;">⬇ Export CSV</button>
+        </div>
+
+        <div class="staff-table-card">
+          <table class="staff-data-table">
+            <thead><tr><th>Reference</th><th>Category</th><th>Complainant</th><th>Investigator</th><th>Filed</th><th>Status</th></tr></thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+
+        <div class="table-pagination">
+          <span id="paginationLine"></span>
+          <span><span style="color:#9ca3af;">‹ Prev</span> &nbsp; <span style="color:#333e56; font-weight:600;">Next ›</span></span>
+        </div>
+      `;
+
+      document.getElementById('searchInput').addEventListener('input', render);
+      document.getElementById('categoryFilter').addEventListener('change', render);
+      document.getElementById('statusFilter').addEventListener('change', render);
+      document.getElementById('exportBtn').addEventListener('click', exportCsv);
+
+      try {
+        await loadAll();
+      } catch (e) {
+        document.getElementById('staffContent').innerHTML = `<div class="error-box">${e.message}</div>`;
+      }
+    })();
+  </script>
+</body>
+</html>

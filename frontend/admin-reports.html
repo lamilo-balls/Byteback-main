@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reports & Analytics — ByteBack</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body style="margin:0;">
+  <div id="staffShell"></div>
+
+  <script src="js/api.js"></script>
+  <script>
+    function generateCsvReport(data) {
+      const rows = [
+        ['ByteBack Report', new Date().toLocaleString()],
+        [],
+        ['Total Complaints', data.totalComplaints],
+        ['Resolved', data.resolvedCount],
+        ['Resolution Rate', data.resolutionRate + '%'],
+        [],
+        ['Month', 'Complaints Filed'],
+        ...data.last12Months.map(m => [m.label, m.count]),
+        [],
+        ['Category', 'Total', 'Avg Resolution (days)'],
+        ...Object.entries(data.byCategory).map(([cat, count]) => [categoryLabel(cat), count, data.avgResolutionByCategory[cat] ?? 'N/A'])
+      ];
+      const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `byteback-report-${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+    }
+
+    (async () => {
+      const me = await renderStaffShell({
+        allowedRoles: ['admin', 'supervisor'],
+        activeHref: 'admin-reports.html',
+        title: 'Reports & Analytics',
+        subtitle: 'Loading...'
+      });
+      if (!me) return;
+
+      try {
+        const data = await api.admReports();
+        document.querySelector('.staff-topbar p').textContent = 'Platform-wide trends and generated reports';
+        document.querySelector('.staff-topbar').insertAdjacentHTML('beforeend', `<button id="genReportBtn" class="add-user-btn" style="position:absolute; top:24px; right:32px;">⬇ Generate Report</button>`);
+        document.querySelector('.staff-topbar').style.position = 'relative';
+        document.getElementById('genReportBtn').addEventListener('click', () => generateCsvReport(data));
+
+        const maxMonth = Math.max(1, ...data.last12Months.map(m => m.count));
+        const catEntries = Object.entries(data.byCategory);
+        const maxCat = Math.max(1, ...catEntries.map(([,c]) => c));
+        const resEntries = Object.entries(data.avgResolutionByCategory).filter(([,v]) => v !== null);
+        const maxRes = Math.max(1, ...resEntries.map(([,v]) => v));
+        const catColors = ['#b45309', '#2563eb', '#7c3aed', '#d1352b', '#c17d09', '#16a34a'];
+
+        document.getElementById('staffContent').innerHTML = `
+          <div class="staff-layout-grid">
+            <div>
+              <div class="staff-table-card" style="margin-bottom:24px;">
+                <h3 style="margin-bottom:16px;">Complaints Filed (12 Months)</h3>
+                <div class="chart-bars" style="height:170px;">
+                  ${data.last12Months.map(m => `
+                    <div class="chart-bar-col">
+                      <div class="chart-bar" style="background:#b45309; height:${(m.count / maxMonth) * 100}%; min-height:${m.count > 0 ? '4px' : '0'};"></div>
+                      <div class="chart-bar-label">${m.label}</div>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+
+              <div class="staff-table-card">
+                <h3 style="margin-bottom:16px;">Average Resolution Time by Category (Days)</h3>
+                ${resEntries.length === 0 ? '<p style="color:#9ca3af; font-size:13px;">No resolved complaints yet.</p>' : `
+                  <div class="chart-bars" style="height:170px;">
+                    ${resEntries.map(([cat, days]) => `
+                      <div class="chart-bar-col">
+                        <div class="chart-bar" style="background:#2563eb; height:${(days / maxRes) * 100}%; min-height:4px;"></div>
+                        <div class="chart-bar-label">${categoryLabel(cat).split(' ')[0]}</div>
+                      </div>
+                    `).join('')}
+                  </div>
+                `}
+              </div>
+            </div>
+
+            <div>
+              <div class="side-card">
+                <h3>Complaints by Category</h3>
+                ${catEntries.map(([cat, count], i) => `
+                  <div style="margin-bottom:14px;">
+                    <div style="display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:4px;">
+                      <span style="font-weight:600; color:#1f2937;">${categoryLabel(cat)}</span>
+                      <span style="color:#4c576f; font-weight:600;">${count}</span>
+                    </div>
+                    <div style="height:10px; background:#eef1f5; border-radius:5px; overflow:hidden;">
+                      <div style="width:${(count / maxCat) * 100}%; height:100%; background:${catColors[i % catColors.length]};"></div>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+
+              <div class="side-card">
+                <h3>Summary</h3>
+                <div class="rcard-kv"><div class="k">Total Complaints</div><div class="v">${data.totalComplaints}</div></div>
+                <div class="rcard-kv"><div class="k">Resolved</div><div class="v">${data.resolvedCount}</div></div>
+                <div class="rcard-kv"><div class="k">Resolution Rate</div><div class="v">${data.resolutionRate}%</div></div>
+                <p style="font-size:12px; color:#9ca3af; margin-top:14px;">Click "Generate Report" above to download this data as a CSV.</p>
+              </div>
+            </div>
+          </div>
+        `;
+      } catch (e) {
+        document.getElementById('staffContent').innerHTML = `<div class="error-box">${e.message}</div>`;
+      }
+    })();
+  </script>
+</body>
+</html>

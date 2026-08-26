@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Case Assignment — ByteBack</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body style="margin:0;">
+  <div id="staffShell"></div>
+
+  <script src="js/api.js"></script>
+  <script>
+    let unassignedCases = [];
+    let investigators = [];
+    let searchTerm = '';
+
+    function render() {
+      const tbody = document.getElementById('tbody');
+      let list = unassignedCases;
+      if (searchTerm) {
+        const q = searchTerm.toLowerCase();
+        list = list.filter(c => c.referenceNumber.toLowerCase().includes(q) || (c.submittedBy && c.submittedBy.fullName.toLowerCase().includes(q)));
+      }
+
+      document.querySelector('.staff-topbar p').textContent = `${unassignedCases.length} unassigned complaint${unassignedCases.length === 1 ? '' : 's'} awaiting investigator assignment`;
+
+      if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="color:#9ca3af; padding:20px 0;">No unassigned complaints. 🎉</td></tr>';
+        return;
+      }
+
+      const options = investigators.map(i => `<option value="${i.id}">${i.fullName} (${i.assignedCount} active)</option>`).join('');
+      const priorityClassMap = { high: 'priority-high', medium: 'priority-medium', low: 'priority-low', critical: 'priority-high' };
+
+      tbody.innerHTML = list.map(c => `
+        <tr data-id="${c.id}">
+          <td>${c.referenceNumber}</td>
+          <td>${categoryLabel(c.category)}</td>
+          <td>${new Date(c.createdAt).toLocaleDateString('en-US',{month:'short',day:'2-digit',year:'numeric'})}</td>
+          <td class="${priorityClassMap[c.priority] || ''}">${c.priority.charAt(0).toUpperCase() + c.priority.slice(1)}</td>
+          <td>${c.submittedBy ? c.submittedBy.fullName : 'Unknown'}</td>
+          <td>
+            <select class="assign-select">
+              <option value="">Assign Investigator ▾</option>
+              ${options}
+            </select>
+          </td>
+        </tr>
+      `).join('');
+
+      tbody.querySelectorAll('.assign-select').forEach(sel => {
+        sel.addEventListener('change', async (e) => {
+          const id = e.target.closest('tr').dataset.id;
+          if (!e.target.value) return;
+          try {
+            await api.supAssign(id, e.target.value);
+            await loadAll();
+          } catch (err) {
+            alert(err.message);
+          }
+        });
+      });
+    }
+
+    async function loadAll() {
+      const [{ cases }, { investigators: invList }] = await Promise.all([api.supUnassigned(), api.supInvestigators()]);
+      unassignedCases = cases;
+      investigators = invList;
+      render();
+    }
+
+    (async () => {
+      const me = await renderStaffShell({
+        role: 'supervisor',
+        activeHref: 'supervisor-assignment.html',
+        title: 'Case Assignment',
+        subtitle: 'Loading...'
+      });
+      if (!me) return;
+
+      document.getElementById('staffContent').innerHTML = `
+        <div class="filter-bar">
+          <input id="searchInput" class="filter-search" style="width:320px;" placeholder="🔍 Search unassigned complaints" />
+        </div>
+        <div class="staff-table-card">
+          <h3 style="margin-bottom:16px;">Unassigned Complaints</h3>
+          <table class="staff-data-table">
+            <thead><tr><th>Reference</th><th>Category</th><th>Filed</th><th>Priority</th><th>Complainant</th><th></th></tr></thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+      `;
+      document.getElementById('searchInput').addEventListener('input', (e) => { searchTerm = e.target.value; render(); });
+
+      try {
+        await loadAll();
+      } catch (e) {
+        document.getElementById('staffContent').innerHTML = `<div class="error-box">${e.message}</div>`;
+      }
+    })();
+  </script>
+</body>
+</html>

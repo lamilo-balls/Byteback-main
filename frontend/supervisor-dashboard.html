@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Supervisor Dashboard — ByteBack</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body style="margin:0;">
+  <div id="staffShell"></div>
+
+  <script src="js/api.js"></script>
+  <script>
+    const workloadColors = ['#d1352b', '#c17d09', '#d1352b', '#16a34a', '#2563eb'];
+
+    (async () => {
+      const me = await renderStaffShell({
+        role: 'supervisor',
+        activeHref: 'supervisor-dashboard.html',
+        title: 'Supervisor Dashboard',
+        subtitle: 'Cybercrime Response Unit · Team overview'
+      });
+      if (!me) return;
+
+      try {
+        const [dash, workloadData] = await Promise.all([api.supDashboard(), api.supWorkload()]);
+
+        const maxTrend = Math.max(1, ...dash.weeklyTrend);
+        const maxWorkload = Math.max(1, ...workloadData.workload.map(w => w.total));
+
+        document.getElementById('staffContent').innerHTML = `
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-top-row"><div class="kpi-icon" style="background:#f0ecfe; color:#7c3aed;">📁</div></div>
+              <div class="kpi-value">${dash.counts.total}</div>
+              <div class="kpi-label">Open Complaints</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-top-row"><div class="kpi-icon" style="background:#eaf0ff; color:#2563eb;">👥</div></div>
+              <div class="kpi-value">${dash.activeInvestigatorCount}</div>
+              <div class="kpi-label">Active Investigators</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-top-row"><div class="kpi-icon" style="background:#fbeaea; color:#d1352b;">⚠</div></div>
+              <div class="kpi-value">${dash.overdueAlerts.length}</div>
+              <div class="kpi-label">Overdue Cases</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-top-row"><div class="kpi-icon" style="background:#e6f8ee; color:#16a34a;">✓</div></div>
+              <div class="kpi-value">${dash.resolutionRate}%</div>
+              <div class="kpi-label">Resolution Rate</div>
+            </div>
+          </div>
+
+          <div class="staff-layout-grid">
+            <div>
+              <div class="staff-table-card" style="margin-bottom:24px;">
+                <h3 style="margin-bottom:16px;">Complaints Filed (Last 8 Weeks)</h3>
+                <div class="trend-chart-bars">
+                  ${dash.weeklyTrend.map((v, i) => `
+                    <div class="trend-bar-col">
+                      <div class="trend-bar" style="height:${(v / maxTrend) * 100}%; min-height:${v > 0 ? '4px' : '0'};"></div>
+                      <div class="trend-bar-label">W${i + 1}</div>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+
+              <div class="staff-table-card">
+                <h3 style="margin-bottom:16px;">Investigator Workload Snapshot</h3>
+                ${workloadData.workload.length === 0 ? '<p style="color:#9ca3af; font-size:13px;">No investigators yet.</p>' : workloadData.workload.map((w, i) => `
+                  <div class="workload-row">
+                    <div class="workload-row-top">
+                      <div class="wname">${w.fullName}</div>
+                      <div class="workload-track"><div class="workload-fill" style="width:${(w.total / maxWorkload) * 100}%; background:${workloadColors[i % workloadColors.length]};"></div></div>
+                      <div class="wcount">${w.total} case${w.total === 1 ? '' : 's'}</div>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <div>
+              <div class="side-card">
+                <h3>Escalations &amp; Alerts</h3>
+                ${dash.overdueAlerts.length === 0 ? '<p style="font-size:12.5px; color:#9ca3af; margin:0;">No overdue cases right now.</p>' : dash.overdueAlerts.map((a, i) => `
+                  <div class="alert-item">
+                    <div class="alert-dot" style="background:${i === 0 ? '#d1352b' : '#c17d09'};"></div>
+                    <div><div class="ref">${a.referenceNumber}</div><div class="desc">Overdue by ${a.daysOpen} days</div></div>
+                  </div>
+                `).join('')}
+              </div>
+
+              <div class="side-card">
+                <h3>Top Performers (This Month)</h3>
+                ${dash.topPerformers.length === 0 ? '<p style="font-size:12.5px; color:#9ca3af; margin:0;">No data yet.</p>' : dash.topPerformers.map((p, i) => `
+                  <div class="performer-row">
+                    <div class="performer-rank">#${i + 1}</div>
+                    <div><div class="name">${p.fullName}</div><div class="meta">${p.resolvedCount} resolved</div></div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        `;
+      } catch (e) {
+        document.getElementById('staffContent').innerHTML = `<div class="error-box">${e.message}</div>`;
+      }
+    })();
+  </script>
+</body>
+</html>

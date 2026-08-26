@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Case Timeline — ByteBack</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body style="margin:0;">
+  <div id="staffShell"></div>
+
+  <script src="js/api.js"></script>
+  <script>
+    const caseId = getSelectedCaseId();
+
+    (async () => {
+      const me = await renderStaffShell({
+        role: 'investigator',
+        activeHref: 'investigator-timeline.html',
+        title: 'Case Timeline',
+        subtitle: 'Loading...'
+      });
+      if (!me) return;
+      if (!caseId) {
+        document.getElementById('staffContent').innerHTML = '<div class="error-box">No case specified. Open a case from Assigned Cases.</div>';
+        return;
+      }
+
+      try {
+        const [workspaceData, timelineData] = await Promise.all([api.invWorkspace(caseId), api.invTimeline(caseId)]);
+        const c = workspaceData.complaint;
+        document.querySelector('.staff-topbar h1').textContent = `Case Timeline — ${c.referenceNumber}`;
+        document.querySelector('.staff-topbar p').textContent = 'Full audit trail of actions taken on this complaint';
+
+        const daysOpen = Math.floor((Date.now() - c.createdAt) / (1000 * 60 * 60 * 24));
+
+        const events = [
+          { ts: c.createdAt, title: 'Complaint Submitted', desc: `${c.submittedBy ? c.submittedBy.fullName : 'Complainant'} filed the complaint${(c.evidence||[]).length ? ' with ' + c.evidence.length + ' evidence file(s) attached.' : '.'}`, done: true }
+        ];
+        timelineData.logs.forEach(l => {
+          events.push({
+            ts: l.createdAt,
+            title: 'Status changed to "' + l.status.replace('_',' ') + '"',
+            desc: l.note || ((l.changedBy ? l.changedBy.fullName : 'System') + ' updated the case status.'),
+            done: true
+          });
+        });
+        events.push({ ts: Date.now(), title: 'Investigation Ongoing', desc: 'Current status: ' + c.status.replace('_',' ') + '.', done: false, now: true });
+
+        document.getElementById('staffContent').innerHTML = `
+          <a href="investigator-workspace.html?id=${c.id}" class="flow-btn-back" style="margin-bottom:16px; display:inline-block;">← Back to Workspace</a>
+          <div style="display:flex; gap:24px; align-items:flex-start;">
+            <div class="ws-card" style="flex:1; min-width:0;">
+              <h3>Activity Log</h3>
+              ${events.map((ev, i) => `
+                <div class="tl-item">
+                  <div class="tl-marker-col">
+                    <div class="tl-dot ${ev.now ? '' : (ev.done ? '' : 'muted')}">${ev.now ? '●' : '✓'}</div>
+                    ${i < events.length - 1 ? '<div class="tl-line"></div>' : ''}
+                  </div>
+                  <div class="tl-body">
+                    <div class="ts">${ev.now ? 'Now' : new Date(ev.ts).toLocaleDateString('en-US',{month:'short',day:'2-digit',year:'numeric'}) + ' · ' + new Date(ev.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</div>
+                    <h4>${ev.title}</h4>
+                    <p>${ev.desc}</p>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+
+            <div class="ws-card" style="width:360px; flex-shrink:0;">
+              <h3>Case Summary</h3>
+              <div class="rcard-kv"><div class="k">Reference</div><div class="v">${c.referenceNumber}</div></div>
+              <div class="rcard-kv"><div class="k">Category</div><div class="v">${categoryLabel(c.category)}</div></div>
+              <div class="rcard-kv"><div class="k">Days Open</div><div class="v">${daysOpen} day${daysOpen === 1 ? '' : 's'}</div></div>
+              <div class="rcard-kv"><div class="k">Complainant</div><div class="v">${c.submittedBy ? c.submittedBy.fullName : 'Unknown'}</div></div>
+              <div class="rcard-kv"><div class="k">Investigator</div><div class="v">${me.fullName}</div></div>
+            </div>
+          </div>
+        `;
+      } catch (e) {
+        document.getElementById('staffContent').innerHTML = `<div class="error-box">${e.message}</div>`;
+      }
+    })();
+  </script>
+</body>
+</html>

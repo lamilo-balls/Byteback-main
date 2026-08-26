@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Create Account — ByteBack</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <style>
+    body.reg-body { background:#f8f9fa; margin:0; }
+    .reg-header { background:#fff; border-bottom:1px solid #e2e8f0; }
+    .reg-header .inner { max-width:1280px; margin:0 auto; padding:0 32px; height:64px; display:flex; align-items:center; justify-content:space-between; }
+    .reg-brand { display:flex; align-items:center; gap:12px; font-weight:700; font-size:20px; color:#102a43; }
+    .reg-brand-icon { width:32px; height:32px; border-radius:6px; background:#2563eb; color:#fff; display:flex; align-items:center; justify-content:center; font-size:14px; }
+    .reg-wrap { display:flex; justify-content:center; padding:64px 32px; }
+    .reg-card { max-width:1024px; width:100%; background:#fff; border:1px solid #e5e7eb; border-radius:16px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1); display:flex; overflow:hidden; }
+    .reg-left { background:#0f2c59; color:#fff; width:40%; padding:48px; display:flex; flex-direction:column; justify-content:space-between; position:relative; }
+    .reg-left::before { content:''; position:absolute; inset:0; background:radial-gradient(circle at 20% 0%, rgba(255,255,255,0.06), transparent 60%); }
+    .reg-left-content { position:relative; }
+    .reg-badge-icon { width:40px; height:40px; border-radius:8px; background:rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; margin-bottom:24px; }
+    .reg-left h1 { font-size:30px; font-weight:700; line-height:1.25; margin:0 0 16px; }
+    .reg-left > .reg-left-content > p.lead { color:rgba(219,234,254,0.8); font-size:16px; line-height:1.6; margin:0 0 24px; }
+    .reg-feature { display:flex; gap:16px; margin-bottom:24px; }
+    .reg-feature-icon { width:32px; height:32px; border-radius:9999px; background:rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:13px; }
+    .reg-feature h4 { margin:0 0 4px; font-size:14px; font-weight:600; }
+    .reg-feature p { margin:0; font-size:12px; color:rgba(219,234,254,0.6); line-height:1.4; }
+    .reg-official { display:flex; align-items:center; gap:8px; font-size:12px; color:rgba(219,234,254,0.4); position:relative; padding-top:24px; }
+    .reg-right { width:60%; padding:48px; max-height:800px; overflow:auto; }
+    .reg-right h2 { font-size:24px; font-weight:700; color:#1f2937; margin:0 0 8px; }
+    .reg-right .sub { color:#6b7280; font-size:14px; margin:0 0 32px; }
+    .reg-field { margin-bottom:20px; }
+    .reg-field label { display:block; font-size:12px; font-weight:700; color:#1f2937; letter-spacing:0.6px; text-transform:uppercase; margin-bottom:6px; }
+    .reg-row2 { display:flex; gap:16px; }
+    .reg-row2 .reg-field { flex:1; }
+    .reg-input-wrap { position:relative; }
+    .reg-input-wrap i { position:absolute; left:14px; top:50%; transform:translateY(-50%); color:#9ca3af; font-size:14px; }
+    .reg-input-wrap input, .reg-input-wrap textarea {
+      width:100%; background:#f8f9fa; border:1px solid #e5e7eb; border-radius:8px;
+      padding:11px 16px 12px 40px; font-size:14px; font-family:inherit; color:#1f2937; box-sizing:border-box;
+    }
+    .reg-input-wrap textarea { min-height:70px; resize:vertical; padding-top:10px; }
+    .reg-checkbox-row { display:flex; gap:12px; margin-bottom:12px; align-items:flex-start; }
+    .reg-checkbox-row input { margin-top:2px; width:20px; height:20px; flex-shrink:0; accent-color:#0f2c59; }
+    .reg-checkbox-row span, .reg-checkbox-row label { font-size:12px; color:#6b7280; line-height:1.4; }
+    .reg-checkbox-row a { color:#0f2c59; font-weight:600; }
+    .reg-submit-btn {
+      width:100%; background:#0f2c59; color:#fff; border:none; border-radius:8px; padding:14px;
+      font-size:16px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;
+      box-shadow:0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);
+    }
+    .reg-submit-btn:disabled { opacity:0.6; cursor:not-allowed; }
+    .reg-footer-line { text-align:center; font-size:14px; margin-top:24px; color:#6b7280; }
+    .reg-footer-line a { color:#0f2c59; font-weight:700; }
+    .reg-site-footer { background:#fff; border-top:1px solid #e2e8f0; padding:24px 32px; }
+    .reg-site-footer .inner { max-width:1280px; margin:0 auto; display:flex; justify-content:space-between; align-items:center; font-size:12px; color:#94a3b8; }
+    .reg-site-footer .links { display:flex; gap:24px; }
+    .reg-site-footer a { color:#94a3b8; }
+    @media (max-width: 860px) {
+      .reg-card { flex-direction:column; }
+      .reg-left, .reg-right { width:100%; }
+      .reg-row2 { flex-direction:column; }
+    }
+  </style>
+</head>
+<body class="reg-body">
+
+  <header class="reg-header">
+    <div class="inner">
+      <a href="index.html" class="reg-brand"><span class="reg-brand-icon"><i class="fa-solid fa-shield-halved"></i></span> ByteBack</a>
+      <div style="display:flex; align-items:center; gap:16px; font-size:14px;">
+        <span style="color:#64748b;">Already have an account?</span>
+        <a href="login.html" style="color:#2563eb; font-weight:600;">Login</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="reg-wrap">
+    <div class="reg-card">
+      <div class="reg-left">
+        <div class="reg-left-content">
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:24px;">
+            <span class="reg-badge-icon"><i class="fa-solid fa-shield-halved"></i></span>
+            <span style="font-weight:700; font-size:20px;">CyberReport</span>
+          </div>
+          <h1>Securing Your Digital Identity</h1>
+          <p class="lead">By registering, you are joining a network dedicated to digital safety and justice. Your personal information is treated with the highest level of confidentiality.</p>
+
+          <div class="reg-feature">
+            <span class="reg-feature-icon"><i class="fa-solid fa-lock"></i></span>
+            <div><h4>End-to-End Encryption</h4><p>All sensitive data is encrypted before being stored in our secure servers.</p></div>
+          </div>
+          <div class="reg-feature">
+            <span class="reg-feature-icon"><i class="fa-solid fa-fingerprint"></i></span>
+            <div><h4>Identity Verification</h4><p>We utilize multi-factor protocols to ensure only you access your account.</p></div>
+          </div>
+          <div class="reg-feature">
+            <span class="reg-feature-icon"><i class="fa-solid fa-shield-halved"></i></span>
+            <div><h4>Data Protection</h4><p>Compliant with the latest international data privacy standards and regulations.</p></div>
+          </div>
+        </div>
+        <div class="reg-official"><i class="fa-solid fa-landmark"></i> Official Government Reporting Authority</div>
+      </div>
+
+      <div class="reg-right">
+        <h2>Create Account</h2>
+        <p class="sub">Please provide your details to access the portal.</p>
+
+        <div id="errorBox" class="error-box" style="display:none;"></div>
+
+        <form id="registerForm">
+          <div class="reg-field">
+            <label for="fullName">Full Name</label>
+            <div class="reg-input-wrap"><i class="fa-solid fa-user"></i><input id="fullName" placeholder="Juan Dela Cruz" required /></div>
+          </div>
+
+          <div class="reg-row2">
+            <div class="reg-field">
+              <label for="email">Email Address</label>
+              <div class="reg-input-wrap"><i class="fa-solid fa-envelope"></i><input id="email" type="email" placeholder="juan@example.com" required /></div>
+            </div>
+            <div class="reg-field">
+              <label for="phone">Phone Number</label>
+              <div class="reg-input-wrap"><i class="fa-solid fa-phone"></i><input id="phone" type="tel" placeholder="+63 123 456 7890" /></div>
+            </div>
+          </div>
+
+          <div class="reg-field">
+            <label for="address">Residential Address</label>
+            <div class="reg-input-wrap"><i class="fa-solid fa-location-dot"></i><textarea id="address" placeholder="123 Security Avenue, City, State, ZIP"></textarea></div>
+          </div>
+
+          <div class="reg-row2">
+            <div class="reg-field">
+              <label for="password">Password</label>
+              <div class="reg-input-wrap"><i class="fa-solid fa-key"></i><input id="password" type="password" placeholder="••••••••" required minlength="8" /></div>
+            </div>
+            <div class="reg-field">
+              <label for="confirmPassword">Confirm Password</label>
+              <div class="reg-input-wrap"><i class="fa-solid fa-key"></i><input id="confirmPassword" type="password" placeholder="••••••••" required minlength="8" /></div>
+            </div>
+          </div>
+
+          <div class="reg-checkbox-row">
+            <input type="checkbox" id="consentPrivacy" required />
+            <label for="consentPrivacy">I consent to the collection and secure processing of my personal data for identity verification purposes in accordance with the <a href="privacy-consent.html" target="_blank">Privacy Policy</a>.</label>
+          </div>
+          <div class="reg-checkbox-row">
+            <input type="checkbox" id="agreedToTerms" required />
+            <label for="agreedToTerms">I agree to the <a href="terms.html" target="_blank">Terms &amp; Conditions</a> and understand the legal implications of reporting false information.</label>
+          </div>
+
+          <div style="padding-top:16px;">
+            <button type="submit" id="submitBtn" class="reg-submit-btn"><i class="fa-solid fa-user-plus"></i> Create Secure Account</button>
+            <div class="reg-footer-line">Already have an account? <a href="login.html">Login here</a></div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <footer class="reg-site-footer">
+    <div class="inner">
+      <span>© 2026 CyberReport Management System. Official Government Portal.</span>
+      <div class="links">
+        <a href="privacy-consent.html">Privacy Policy</a>
+        <a href="terms.html">Terms of Use</a>
+        <a href="coming-soon.html">Security Disclosure</a>
+        <a href="coming-soon.html">Help Center</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/api.js"></script>
+  <script>
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errorBox = document.getElementById('errorBox');
+      const submitBtn = document.getElementById('submitBtn');
+      errorBox.style.display = 'none';
+
+      const password = document.getElementById('password').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+      if (password !== confirmPassword) {
+        errorBox.textContent = 'Passwords do not match.';
+        errorBox.style.display = 'block';
+        return;
+      }
+      if (!document.getElementById('consentPrivacy').checked || !document.getElementById('agreedToTerms').checked) {
+        errorBox.textContent = 'You must agree to the Privacy Policy and Terms & Conditions.';
+        errorBox.style.display = 'block';
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = 'Creating account...';
+
+      try {
+        const data = await api.register({
+          fullName: document.getElementById('fullName').value,
+          email: document.getElementById('email').value,
+          phone: document.getElementById('phone').value,
+          address: document.getElementById('address').value,
+          password: password,
+          agreedToTerms: true
+        });
+        if (data.devVerificationCode) {
+          sessionStorage.setItem('dev_verification_code', data.devVerificationCode);
+        }
+        window.location.href = 'email-verification.html';
+      } catch (err) {
+        errorBox.textContent = err.message;
+        errorBox.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fa-solid fa-user-plus"></i> Create Secure Account';
+      }
+    });
+  </script>
+</body>
+</html>

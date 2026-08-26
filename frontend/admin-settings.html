@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Platform Settings — ByteBack</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body style="margin:0;">
+  <div id="staffShell"></div>
+
+  <script src="js/api.js"></script>
+  <script>
+    let settings = {};
+    let activeTab = 'general';
+
+    function toggleRow(key, title, desc) {
+      const on = !!settings[key];
+      return `
+        <div class="settings-pref-row">
+          <div><h4>${title}</h4><p>${desc}</p></div>
+          <button class="toggle-switch ${on ? 'on' : ''}" data-key="${key}" style="${on ? '--accent:#b45309;' : ''}"><span class="knob"></span></button>
+        </div>
+      `;
+    }
+
+    function renderGeneral() {
+      return `
+        <div class="settings-card" style="padding:24px; margin-bottom:24px;">
+          <h3 style="margin-bottom:16px;">Platform Settings</h3>
+          <div class="flow-field">
+            <label>Platform Name</label>
+            <input id="stPlatformName" value="${settings.platformName || ''}" />
+          </div>
+          <div class="profile-row2">
+            <div class="flow-field">
+              <label>Support Email</label>
+              <input id="stSupportEmail" value="${settings.supportEmail || ''}" />
+            </div>
+            <div class="flow-field">
+              <label>Support Hotline</label>
+              <input id="stSupportHotline" value="${settings.supportHotline || ''}" />
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-card" style="padding:8px 24px; margin-bottom:24px;">
+          ${toggleRow('requireMfa', 'Require MFA for staff accounts', 'Investigators, supervisors, and admins must use multi-factor authentication')}
+          ${toggleRow('autoLockAfterFailedAttempts', 'Auto-lock after failed attempts', 'Lock accounts after 5 consecutive failed login attempts')}
+          ${toggleRow('sessionTimeoutEnabled', 'Session timeout (30 min)', 'Automatically log out inactive staff sessions')}
+          ${toggleRow('allowSupervisorExport', 'Allow data export by supervisors', 'Permit the supervisor role to export complaint reports')}
+        </div>
+
+        <div id="errorBox" class="error-box" style="max-width:760px; display:none;"></div>
+        <div id="successBox" class="success-box" style="max-width:760px; display:none;">Settings saved.</div>
+        <button id="saveBtn" class="add-user-btn">Save Settings</button>
+      `;
+    }
+
+    function renderPlaceholder(text) {
+      return `<div class="settings-card" style="padding:24px;"><p style="font-size:13px; color:#6b7280; margin:0;">${text}</p></div>`;
+    }
+
+    function render() {
+      const content = document.getElementById('tabContent');
+      if (activeTab === 'general') content.innerHTML = renderGeneral();
+      else if (activeTab === 'security') content.innerHTML = renderPlaceholder('Password complexity rules, MFA enforcement windows, and IP allowlisting live here. Configure the essentials from the General tab for now.');
+      else if (activeTab === 'roles') content.innerHTML = renderPlaceholder('Fine-grained permission editing per role is on the roadmap. Roles are currently fixed: Victim, Investigator, Supervisor, Administrator — manage who holds them from User Management.');
+      else if (activeTab === 'notifications') content.innerHTML = renderPlaceholder('Platform-wide notification templates and delivery channels will be configurable here.');
+
+      if (activeTab === 'general') {
+        document.querySelectorAll('.toggle-switch').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const key = btn.dataset.key;
+            settings[key] = !settings[key];
+            render();
+          });
+        });
+        document.getElementById('saveBtn').addEventListener('click', save);
+      }
+    }
+
+    async function save() {
+      const errorBox = document.getElementById('errorBox');
+      const successBox = document.getElementById('successBox');
+      errorBox.style.display = 'none';
+      successBox.style.display = 'none';
+
+      settings.platformName = document.getElementById('stPlatformName').value;
+      settings.supportEmail = document.getElementById('stSupportEmail').value;
+      settings.supportHotline = document.getElementById('stSupportHotline').value;
+
+      try {
+        const data = await api.admUpdateSettings(settings);
+        settings = data.settings;
+        successBox.style.display = 'block';
+      } catch (e) {
+        errorBox.textContent = e.message;
+        errorBox.style.display = 'block';
+      }
+    }
+
+    (async () => {
+      const me = await renderStaffShell({
+        role: 'admin',
+        activeHref: 'admin-settings.html',
+        title: 'Settings',
+        subtitle: 'Platform configuration and system preferences'
+      });
+      if (!me) return;
+
+      document.getElementById('staffContent').innerHTML = `
+        <div class="settings-tabs">
+          <button class="settings-tab active" data-tab="general">General</button>
+          <button class="settings-tab" data-tab="security">Security Policy</button>
+          <button class="settings-tab" data-tab="roles">Roles &amp; Permissions</button>
+          <button class="settings-tab" data-tab="notifications">Notifications</button>
+        </div>
+        <div id="tabContent"></div>
+      `;
+
+      document.querySelectorAll('.settings-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          activeTab = tab.dataset.tab;
+          document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          render();
+        });
+      });
+
+      try {
+        const data = await api.admGetSettings();
+        settings = data.settings;
+        render();
+      } catch (e) {
+        document.getElementById('tabContent').innerHTML = `<div class="error-box">${e.message}</div>`;
+      }
+    })();
+  </script>
+</body>
+</html>

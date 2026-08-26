@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Administrator Dashboard — ByteBack</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body style="margin:0;">
+  <div id="staffShell"></div>
+
+  <script src="js/api.js"></script>
+  <script>
+    const statusOrder = ['submitted', 'under_review', 'investigating', 'resolved', 'closed'];
+    const statusLabels = { submitted: 'Submitted', under_review: 'Under Review', investigating: 'Under Investigation', resolved: 'Resolved', closed: 'Closed' };
+    const statusColors = { submitted: '#9ca3af', under_review: '#c17d09', investigating: '#2563eb', resolved: '#16a34a', closed: '#4c576f' };
+    const severityColor = { high: '#d1352b', medium: '#c17d09', low: '#16a34a' };
+
+    (async () => {
+      const me = await renderStaffShell({
+        role: 'admin',
+        activeHref: 'admin-dashboard.html',
+        title: 'Administrator Dashboard',
+        subtitle: 'Platform-wide overview · ByteBack Cybercrime Complaint Management System'
+      });
+      if (!me) return;
+
+      try {
+        const data = await api.admDashboard();
+
+        const catEntries = Object.entries(data.byCategory);
+        const maxCat = Math.max(1, ...catEntries.map(([,c]) => c));
+        const maxStatus = Math.max(1, ...statusOrder.map(s => data.byStatus[s]));
+        const maxGrowth = Math.max(1, ...data.userGrowth.map(g => g.count));
+
+        document.getElementById('staffContent').innerHTML = `
+          <div class="kpi-grid-5">
+            <div class="kpi-card">
+              <div class="kpi-top-row"><div class="kpi-icon" style="background:#fef1e5; color:#b45309;">📁</div></div>
+              <div class="kpi-value">${data.totalComplaints}</div>
+              <div class="kpi-label">Total Complaints</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-top-row"><div class="kpi-icon" style="background:#eaf0ff; color:#2563eb;">👥</div></div>
+              <div class="kpi-value">${data.totalUsers}</div>
+              <div class="kpi-label">Registered Users</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-top-row"><div class="kpi-icon" style="background:#f0ecfe; color:#7c3aed;">🕵</div></div>
+              <div class="kpi-value">${data.activeInvestigators}</div>
+              <div class="kpi-label">Active Investigators</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-top-row"><div class="kpi-icon" style="background:#e6f8ee; color:#16a34a;">✓</div></div>
+              <div class="kpi-value">${data.resolutionRate}%</div>
+              <div class="kpi-label">System Resolution Rate</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-top-row"><div class="kpi-icon" style="background:#fbeaea; color:#d1352b;">⚠</div></div>
+              <div class="kpi-value">${data.flaggedSecurityEvents}</div>
+              <div class="kpi-label">Flagged Security Events</div>
+            </div>
+          </div>
+
+          <div class="staff-layout-grid">
+            <div>
+              <div class="staff-table-card" style="margin-bottom:24px;">
+                <h3 style="margin-bottom:16px;">Complaints by Category (All Time)</h3>
+                <div class="chart-bars" style="height:170px;">
+                  ${catEntries.length === 0 ? '<p style="color:#9ca3af; font-size:13px;">No complaints yet.</p>' : catEntries.map(([cat, count]) => `
+                    <div class="chart-bar-col">
+                      <div class="chart-bar" style="background:#b45309; height:${(count / maxCat) * 100}%; min-height:${count > 0 ? '4px' : '0'};"></div>
+                      <div class="chart-bar-label">${categoryLabel(cat).split(' ')[0]}</div>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+
+              <div class="staff-table-card">
+                <h3 style="margin-bottom:16px;">Complaint Status Breakdown</h3>
+                ${statusOrder.map(s => `
+                  <div class="status-breakdown-row">
+                    <div class="sname">${statusLabels[s]}</div>
+                    <div class="status-breakdown-track"><div class="status-breakdown-fill" style="width:${(data.byStatus[s] / maxStatus) * 100}%; background:${statusColors[s]};"></div></div>
+                    <div class="scount">${data.byStatus[s]}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <div>
+              <div class="side-card">
+                <h3>Recent Security Events</h3>
+                ${data.recentSecurityEvents.length === 0 ? '<p style="font-size:12.5px; color:#9ca3af; margin:0;">No events logged yet.</p>' : data.recentSecurityEvents.map(e => `
+                  <div class="sec-event-item">
+                    <div class="sec-event-dot" style="background:${severityColor[e.severity]};"></div>
+                    <div><div class="title">${e.title}</div><div class="detail">${e.detail || e.actor}</div></div>
+                  </div>
+                `).join('')}
+              </div>
+
+              <div class="side-card">
+                <h3>User Growth (6 Months)</h3>
+                <div class="chart-bars" style="height:140px;">
+                  ${data.userGrowth.map(g => `
+                    <div class="chart-bar-col">
+                      <div class="chart-bar" style="background:#2563eb; height:${(g.count / maxGrowth) * 100}%; min-height:${g.count > 0 ? '4px' : '0'};"></div>
+                      <div class="chart-bar-label">${g.label}</div>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      } catch (e) {
+        document.getElementById('staffContent').innerHTML = `<div class="error-box">${e.message}</div>`;
+      }
+    })();
+  </script>
+</body>
+</html>

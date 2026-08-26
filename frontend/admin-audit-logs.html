@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Audit Logs — ByteBack</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body style="margin:0;">
+  <div id="staffShell"></div>
+
+  <script src="js/api.js"></script>
+  <script>
+    const actionLabels = {
+      role_changed: 'User role changed',
+      status_overridden: 'Complaint status overridden',
+      user_created: 'New staff account created',
+      user_deleted: 'User deleted',
+      settings_updated: 'Platform settings updated',
+      login_success: 'Login successful',
+      login_failed: 'Failed login attempt'
+    };
+    const roleLabels = { public: 'Victim', investigator: 'Investigator', supervisor: 'Supervisor', admin: 'Administrator' };
+
+    let allLogs = [];
+    let filters = { search: '', action: '', role: '' };
+
+    function extractTarget(details) {
+      if (!details) return '—';
+      const emailMatch = details.match(/[\w.+-]+@[\w-]+\.[\w.-]+/);
+      const refMatch = details.match(/CR-\d{4}-\d+/);
+      return refMatch ? refMatch[0] : (emailMatch ? emailMatch[0] : '—');
+    }
+
+    function describeAction(log) {
+      if (!log) return '';
+      const details = log.details || '';
+      switch (log.action) {
+        case 'role_changed': {
+          const match = details.match(/changed (.+?) from (.+?) to (.+)/);
+          if (match) {
+            return `Changed ${match[1]} role from ${match[2]} to ${match[3]}`;
+          }
+          return details || actionLabels[log.action];
+        }
+        case 'status_overridden': {
+          const match = details.match(/(CR-\d{4}-\d+): (.+)/);
+          if (match) {
+            return `Updated ${match[1]}: ${match[2]}`;
+          }
+          return details || actionLabels[log.action];
+        }
+        case 'user_created': {
+          const match = details.match(/created (.+?) account for (.+)/);
+          if (match) {
+            return `Created ${match[1]} account for ${match[2]}`;
+          }
+          return details || actionLabels[log.action];
+        }
+        case 'user_deleted':
+          return details || actionLabels[log.action];
+        case 'settings_updated':
+          return details ? `Updated settings: ${details}` : actionLabels[log.action];
+        case 'login_success':
+          return details ? `Login successful for ${details}` : actionLabels[log.action];
+        case 'login_failed':
+          return details ? `Login failed for ${details}` : actionLabels[log.action];
+        default:
+          return details ? `${actionLabels[log.action] || log.action}: ${details}` : (actionLabels[log.action] || log.action);
+      }
+    }
+
+    function render() {
+      let list = allLogs;
+      if (filters.action) list = list.filter(l => l.action === filters.action);
+      if (filters.role) list = list.filter(l => l.actor && l.actor.role === filters.role);
+      if (filters.search) {
+        const q = filters.search.toLowerCase();
+        list = list.filter(l => (l.actor && l.actor.fullName.toLowerCase().includes(q)) || (l.details || '').toLowerCase().includes(q));
+      }
+
+      const tbody = document.getElementById('tbody');
+      if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="color:#9ca3af; padding:20px 0;">No matching audit entries.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = list.map(l => `
+        <tr>
+          <td style="color:#6b7280;">${new Date(l.createdAt).toLocaleDateString('en-US',{month:'short',day:'2-digit',year:'numeric'})} ${new Date(l.createdAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</td>
+          <td style="font-weight:600; color:#1f2937;">${l.actor ? l.actor.fullName : 'System'}</td>
+          <td style="color:#4c576f;">${l.actor ? (roleLabels[l.actor.role] || l.actor.role) : '—'}</td>
+          <td style="color:#333e56;">${describeAction(l)}</td>
+          <td style="color:#6b7280;">${extractTarget(l.details)}</td>
+        </tr>
+      `).join('');
+    }
+
+    function exportLog() {
+      const rows = [['Timestamp', 'User', 'Role', 'Action', 'Target', 'Details']];
+      allLogs.forEach(l => rows.push([
+        new Date(l.createdAt).toLocaleString(), l.actor ? l.actor.fullName : 'System',
+        l.actor ? (roleLabels[l.actor.role] || l.actor.role) : '', describeAction(l),
+        extractTarget(l.details), l.details || ''
+      ]));
+      const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'byteback-audit-log.csv';
+      a.click();
+    }
+
+    (async () => {
+      const me = await renderStaffShell({
+        role: 'admin',
+        activeHref: 'admin-audit-logs.html',
+        title: 'Audit Logs',
+        subtitle: 'Full record of administrative and system actions'
+      });
+      if (!me) return;
+
+      document.querySelector('.staff-topbar').insertAdjacentHTML('beforeend', `<button id="exportLogBtn" class="add-user-btn" style="position:absolute; top:24px; right:32px;">⬇ Export Log</button>`);
+      document.querySelector('.staff-topbar').style.position = 'relative';
+      document.getElementById('exportLogBtn').addEventListener('click', exportLog);
+
+      document.getElementById('staffContent').innerHTML = `
+        <div class="filter-bar">
+          <input id="searchInput" class="filter-search" placeholder="🔍 Search by user or action" />
+          <select id="actionFilter" class="filter-select-chip">
+            <option value="">All Actions</option>
+            ${Object.entries(actionLabels).map(([k,v]) => `<option value="${k}">${v}</option>`).join('')}
+          </select>
+          <select id="roleFilter" class="filter-select-chip">
+            <option value="">All Roles</option>
+            ${Object.entries(roleLabels).map(([k,v]) => `<option value="${k}">${v}</option>`).join('')}
+          </select>
+        </div>
+        <div class="staff-table-card">
+          <table class="staff-data-table">
+            <thead><tr><th>Timestamp</th><th>User</th><th>Role</th><th>Action</th><th>Target</th></tr></thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+      `;
+      document.getElementById('searchInput').addEventListener('input', (e) => { filters.search = e.target.value; render(); });
+      document.getElementById('actionFilter').addEventListener('change', (e) => { filters.action = e.target.value; render(); });
+      document.getElementById('roleFilter').addEventListener('change', (e) => { filters.role = e.target.value; render(); });
+
+      try {
+        const data = await api.admAuditLogs();
+        allLogs = data.logs;
+        render();
+      } catch (e) {
+        document.getElementById('staffContent').innerHTML = `<div class="error-box">${e.message}</div>`;
+      }
+    })();
+  </script>
+</body>
+</html>

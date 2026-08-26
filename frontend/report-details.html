@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Complaint Details — ByteBack</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body style="background:#f8f9fa;">
+  <div id="appHeader"></div>
+
+  <main class="flow-wrap">
+    <div id="stepIndicator"></div>
+    <div class="flow-cat-badge" id="catBadge"></div>
+    <h1 class="flow-title">Complaint Details</h1>
+    <p class="flow-sub">Provide as much detail as possible to help investigators act quickly.</p>
+
+    <div id="errorBox" class="error-box" style="max-width:680px; display:none;"></div>
+
+    <form id="detailsForm">
+      <div class="flow-form-card">
+        <div class="flow-field">
+          <label for="title">Complaint Title</label>
+          <input id="title" placeholder="e.g. Fraudulent email requesting bank verification" required />
+        </div>
+        <div class="flow-field">
+          <label for="incidentDate">Date of Incident</label>
+          <input id="incidentDate" type="date" />
+        </div>
+        <div class="flow-field">
+          <label for="platform">Platform / Website Involved</label>
+          <input id="platform" placeholder="e.g. Email, Facebook, Lending App" />
+        </div>
+        <div class="flow-field">
+          <label for="suspectInfo">Suspect Information (if known)</label>
+          <input id="suspectInfo" placeholder="Name, username, phone number, or account handle" />
+        </div>
+        <div class="flow-field">
+          <label for="description">Detailed Description</label>
+          <textarea id="description" placeholder="Describe what happened, step by step..." required></textarea>
+        </div>
+        <div class="flow-field">
+          <label for="estimatedLoss">Estimated Financial Loss (PHP) — optional</label>
+          <input id="estimatedLoss" type="number" step="0.01" placeholder="0.00" />
+        </div>
+      </div>
+
+      <div class="flow-actions">
+        <a href="report-category.html" class="flow-btn-back">← Back</a>
+        <button type="submit" class="flow-btn-next">Next: Upload Evidence →</button>
+      </div>
+    </form>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script>
+    const category = sessionStorage.getItem('report_category');
+    const categoryLabelStr = sessionStorage.getItem('report_categoryLabel');
+    if (!category) window.location.href = 'report-category.html';
+
+    (async () => {
+      const me = await renderAppHeader('file');
+      if (!me) return;
+      document.getElementById('stepIndicator').innerHTML = renderStepIndicator(1);
+      document.getElementById('catBadge').textContent = categoryLabelStr;
+    })();
+
+    document.getElementById('detailsForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const title = document.getElementById('title').value.trim();
+      const description = document.getElementById('description').value.trim();
+      const errorBox = document.getElementById('errorBox');
+
+      if (!title || !description) {
+        errorBox.textContent = 'Complaint title and detailed description are required.';
+        errorBox.style.display = 'block';
+        return;
+      }
+
+      sessionStorage.setItem('report_title', title);
+      sessionStorage.setItem('report_description', description);
+      sessionStorage.setItem('report_incidentDate', document.getElementById('incidentDate').value);
+      sessionStorage.setItem('report_platform', document.getElementById('platform').value);
+      sessionStorage.setItem('report_suspectInfo', document.getElementById('suspectInfo').value);
+      sessionStorage.setItem('report_estimatedLoss', document.getElementById('estimatedLoss').value);
+
+      window.location.href = 'report-evidence.html';
+    });
+  </script>
+</body>
+</html>

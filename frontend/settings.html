@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Settings — ByteBack</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body style="background:#f8f9fa;">
+  <div id="staffShell"></div>
+  <div id="appHeader"></div>
+
+  <main class="flow-wrap" id="pageMain">
+    <h1 class="flow-title" style="margin-bottom:24px;">Settings</h1>
+
+    <div class="settings-tabs">
+      <button class="settings-tab active" data-tab="notifications">Notifications</button>
+      <button class="settings-tab" data-tab="privacy">Privacy</button>
+      <button class="settings-tab" data-tab="account">Account</button>
+    </div>
+
+    <div id="errorBox" class="error-box" style="max-width:680px; display:none;"></div>
+
+    <div id="notificationsPanel">
+      <div class="settings-card">
+        <div class="settings-pref-row">
+          <div><h4>Email notifications</h4><p>Receive updates about your complaints by email</p></div>
+          <button class="toggle-switch" data-pref="email"><span class="knob"></span></button>
+        </div>
+        <div class="settings-pref-row">
+          <div><h4>SMS alerts</h4><p>Get a text message for major status changes</p></div>
+          <button class="toggle-switch" data-pref="sms"><span class="knob"></span></button>
+        </div>
+        <div class="settings-pref-row">
+          <div><h4>Investigator remarks</h4><p>Notify me when an investigator adds a remark</p></div>
+          <button class="toggle-switch" data-pref="investigatorRemarks"><span class="knob"></span></button>
+        </div>
+        <div class="settings-pref-row">
+          <div><h4>Marketing &amp; tips</h4><p>Occasional safety tips and platform updates</p></div>
+          <button class="toggle-switch" data-pref="marketing"><span class="knob"></span></button>
+        </div>
+      </div>
+    </div>
+
+    <div id="privacyPanel" style="display:none;">
+      <div class="settings-card" style="padding:20px 27px;">
+        <p style="font-size:13px; color:#4c576f; line-height:1.6; margin:0 0 12px;">Your data is handled per our <a href="privacy-consent.html" style="color:#2563eb;">Data Privacy Consent</a> and is only shared with authorized investigators working on your case.</p>
+        <p style="font-size:13px; color:#4c576f; line-height:1.6; margin:0;">To request a copy of your data or its deletion, contact <strong>support@byteback.gov</strong>.</p>
+      </div>
+    </div>
+
+    <div id="accountPanel" style="display:none;">
+      <div class="settings-card" style="padding:20px 27px; margin-bottom:24px;">
+        <div class="settings-pref-row" style="border-bottom:none; padding:0;">
+          <div><h4>Log out</h4><p>End your current session on this device</p></div>
+          <a href="logout-confirm.html" class="flow-btn-back" style="padding:9px 20px;">Log Out</a>
+        </div>
+      </div>
+      <div class="danger-card">
+        <h3>Danger Zone</h3>
+        <p>Deactivating your account will hide your profile but preserve complaint records for legal purposes.</p>
+        <button id="deactivateBtn" class="danger-btn">Deactivate Account</button>
+      </div>
+    </div>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script>
+    let prefs = { email: true, sms: true, investigatorRemarks: true, marketing: false };
+    let phoneLinked = false;
+
+    function renderToggles() {
+      document.querySelectorAll('.toggle-switch').forEach(btn => {
+        const key = btn.dataset.pref;
+        btn.classList.toggle('on', !!prefs[key]);
+        if (key === 'sms') {
+          if (!phoneLinked) {
+            btn.classList.remove('on');
+            btn.setAttribute('disabled', 'disabled');
+            btn.title = 'SMS alerts require a linked phone number';
+          } else {
+            btn.removeAttribute('disabled');
+            btn.title = '';
+          }
+        }
+      });
+    }
+
+    document.querySelectorAll('.toggle-switch').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (btn.dataset.pref === 'sms' && !phoneLinked) return;
+        const key = btn.dataset.pref;
+        prefs[key] = !prefs[key];
+        renderToggles();
+        try {
+          await api.updateNotificationPrefs(prefs);
+        } catch (e) {
+          document.getElementById('errorBox').textContent = e.message;
+          document.getElementById('errorBox').style.display = 'block';
+        }
+      });
+    });
+
+    document.querySelectorAll('.settings-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        ['notifications', 'privacy', 'account'].forEach(name => {
+          document.getElementById(name + 'Panel').style.display = name === tab.dataset.tab ? 'block' : 'none';
+        });
+      });
+    });
+
+    document.getElementById('deactivateBtn').addEventListener('click', async () => {
+      if (!confirm('Are you sure you want to deactivate your account? You can contact support to reactivate it later.')) return;
+      try {
+        await api.deactivateAccount();
+        window.location.href = 'index.html';
+      } catch (e) {
+        document.getElementById('errorBox').textContent = e.message;
+        document.getElementById('errorBox').style.display = 'block';
+      }
+    });
+
+    (async () => {
+      let me;
+      try {
+        me = (await api.me()).user;
+      } catch (e) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      if (me.role === 'investigator' || me.role === 'supervisor' || me.role === 'admin') {
+        await renderStaffShell({
+          role: me.role,
+          activeHref: me.role === 'admin' ? 'admin-settings.html' : 'settings.html',
+          title: 'Settings',
+          subtitle: 'Manage your account preferences'
+        });
+        document.getElementById('staffContent').appendChild(document.getElementById('pageMain'));
+      } else {
+        await renderAppHeader('');
+      }
+
+      phoneLinked = !!(me.phone && me.phone.trim());
+      if (!phoneLinked) {
+        prefs.sms = false;
+      }
+      if (me.notificationPrefs) {
+        prefs = { ...prefs, ...me.notificationPrefs };
+      }
+      renderToggles();
+    })();
+  </script>
+</body>
+</html>

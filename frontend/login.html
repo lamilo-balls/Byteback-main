@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Secure Login — ByteBack</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <style>
+    body.login-body { background:#f8f9fa; margin:0; }
+    .login-header { background:#fff; border-bottom:1px solid #e2e8f0; }
+    .login-header .inner { max-width:1280px; margin:0 auto; padding:0 32px; height:64px; display:flex; align-items:center; justify-content:space-between; }
+    .login-brand { display:flex; align-items:center; gap:12px; font-weight:700; font-size:20px; color:#102a43; }
+    .login-brand-icon { width:32px; height:32px; border-radius:6px; background:#2563eb; color:#fff; display:flex; align-items:center; justify-content:center; font-size:14px; }
+    .login-wrap { display:flex; justify-content:center; padding:96px 32px; }
+    .login-card { max-width:1024px; width:100%; background:#fff; border:1px solid #e5e7eb; border-radius:16px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1); display:flex; overflow:hidden; }
+    .login-left { background:#0f2c59; color:#fff; width:40%; padding:48px; display:flex; flex-direction:column; justify-content:space-between; }
+    .login-left h1 { font-size:30px; font-weight:700; line-height:1.25; margin:24px 0 16px; }
+    .login-left p.lead { color:rgba(219,234,254,0.8); font-size:16px; line-height:1.6; margin:0; }
+    .login-feature { display:flex; gap:16px; align-items:center; margin-top:32px; }
+    .login-feature-icon { width:40px; height:40px; border-radius:9999px; background:rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:14px; }
+    .login-feature h4 { margin:0 0 2px; font-size:14px; font-weight:600; }
+    .login-feature p { margin:0; font-size:12px; color:rgba(219,234,254,0.6); }
+    .login-ssl-note { display:flex; align-items:center; gap:8px; font-size:12px; color:rgba(219,234,254,0.4); padding-top:48px; }
+    .login-right { width:60%; padding:64px; display:flex; flex-direction:column; justify-content:center; }
+    .login-right h2 { font-size:30px; font-weight:700; color:#1f2937; margin:0 0 8px; }
+    .login-right .sub { color:#6b7280; font-size:16px; margin:0 0 32px; }
+    .login-field { margin-bottom:24px; }
+    .login-field-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+    .login-field label { font-size:12px; font-weight:700; color:#1f2937; letter-spacing:0.6px; text-transform:uppercase; }
+    .login-field a.forgot { font-size:12px; font-weight:700; color:#0f2c59; }
+    .login-input-wrap { position:relative; }
+    .login-input-wrap i.left-icon { position:absolute; left:16px; top:50%; transform:translateY(-50%); color:#9ca3af; font-size:14px; }
+    .login-input-wrap button.toggle-pw { position:absolute; right:16px; top:50%; transform:translateY(-50%); background:none; border:none; color:#9ca3af; cursor:pointer; font-size:14px; }
+    .login-input-wrap input {
+      width:100%; background:#f8f9fa; border:1px solid #e5e7eb; border-radius:12px;
+      padding:16px 48px 16px 44px; font-size:14px; font-family:inherit; color:#1f2937; box-sizing:border-box;
+    }
+    input[type="password"]::-webkit-textfield-decoration-container,
+    input[type="password"]::-webkit-credentials-auto-fill-button,
+    input[type="password"]::-ms-reveal,
+    input[type="password"]::-ms-clear {
+      display: none !important;
+    }
+    .login-remember { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
+    .login-remember input { width:20px; height:20px; accent-color:#0f2c59; }
+    .login-remember label { font-size:14px; color:#6b7280; font-weight:500; }
+    .login-submit-btn {
+      width:100%; background:#0f2c59; color:#fff; border:none; border-radius:12px; padding:16px;
+      font-size:16px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:12px;
+      box-shadow:0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);
+    }
+    .login-submit-btn:disabled { opacity:0.6; cursor:not-allowed; }
+    .login-signup-line { text-align:center; font-size:14px; padding-top:32px; margin-top:24px; border-top:1px solid #e5e7eb; color:#6b7280; }
+    .login-signup-line a { color:#0f2c59; font-weight:700; }
+    .login-badges { display:flex; gap:24px; align-items:center; justify-content:center; opacity:0.4; padding-top:48px; font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#000; }
+    .login-badges span { display:flex; align-items:center; gap:8px; }
+    .login-site-footer { background:#fff; border-top:1px solid #e2e8f0; padding:24px 32px; margin-top:64px; }
+    .login-site-footer .inner { max-width:1280px; margin:0 auto; display:flex; justify-content:space-between; align-items:center; font-size:12px; color:#94a3b8; }
+    .login-site-footer .links { display:flex; gap:24px; }
+    .login-site-footer a { color:#94a3b8; }
+    @media (max-width: 860px) {
+      .login-card { flex-direction:column; }
+      .login-left, .login-right { width:100%; padding:32px; }
+    }
+  </style>
+</head>
+<body class="login-body">
+
+  <header class="login-header">
+    <div class="inner">
+      <a href="index.html" class="login-brand"><span class="login-brand-icon"><i class="fa-solid fa-shield-halved"></i></span> ByteBack</a>
+      <div style="display:flex; align-items:center; gap:16px; font-size:14px;">
+        <span style="color:#64748b;">Already have an account?</span>
+        <a href="login.html" style="color:#2563eb; font-weight:600;">Login</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="login-left">
+        <div>
+          <div style="display:flex; align-items:center; gap:12px;">
+            <span class="login-feature-icon" style="width:40px; height:40px; border-radius:8px;"><i class="fa-solid fa-shield-halved"></i></span>
+            <span style="font-weight:700; font-size:20px;">CyberReport</span>
+          </div>
+          <h1>Welcome Back to<br />Secure Access</h1>
+          <p class="lead">Protecting your data is our priority. Please sign in to access your reports and secure dashboard.</p>
+
+          <div class="login-feature">
+            <span class="login-feature-icon"><i class="fa-solid fa-tower-broadcast"></i></span>
+            <div><h4>Real-time Monitoring</h4><p>Stay updated with instant threat alerts.</p></div>
+          </div>
+          <div class="login-feature">
+            <span class="login-feature-icon"><i class="fa-solid fa-fingerprint"></i></span>
+            <div><h4>Verified Credentials</h4><p>Automated identity cross-referencing.</p></div>
+          </div>
+        </div>
+        <div class="login-ssl-note"><i class="fa-solid fa-lock"></i> Secure SSL Encrypted Connection</div>
+      </div>
+
+      <div class="login-right">
+        <h2>Secure Login</h2>
+        <p class="sub">Enter your credentials to continue</p>
+
+        <div id="errorBox" class="error-box" style="display:none;"></div>
+
+        <form id="loginForm">
+          <div class="login-field">
+            <div class="login-field-top"><label for="email">Email Address</label></div>
+            <div class="login-input-wrap">
+              <i class="fa-solid fa-envelope left-icon"></i>
+              <input id="email" type="email" placeholder="john.doe@security.gov" required />
+            </div>
+          </div>
+
+          <div class="login-field">
+            <div class="login-field-top">
+              <label for="password">Password</label>
+              <a href="forgot-password.html" class="forgot">Forgot Password?</a>
+            </div>
+            <div class="login-input-wrap">
+              <i class="fa-solid fa-key left-icon"></i>
+              <input id="password" type="password" placeholder="••••••••••••" required />
+              <button type="button" class="toggle-pw" id="togglePw"><i class="fa-solid fa-eye"></i></button>
+            </div>
+          </div>
+
+          <div class="login-remember">
+            <input type="checkbox" id="rememberDevice" />
+            <label for="rememberDevice">Remember this device</label>
+          </div>
+
+          <button type="submit" id="submitBtn" class="login-submit-btn"><i class="fa-solid fa-right-to-bracket"></i> Login to Portal</button>
+
+          <div class="login-signup-line">New to CyberReport? <a href="register.html">Create an account</a></div>
+        </form>
+
+        <div class="login-badges">
+          <span><i class="fa-solid fa-certificate"></i> ISO 27001</span>
+          <span><i class="fa-solid fa-lock"></i> SSL SECURE</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="login-site-footer">
+    <div class="inner">
+      <span>© 2026 CyberReport Management System. Official Government Portal.</span>
+      <div class="links">
+        <a href="privacy-consent.html">Privacy Policy</a>
+        <a href="terms.html">Terms of Use</a>
+        <a href="#">Security Disclosure</a>
+        <a href="#">Help Center</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/api.js"></script>
+  <script>
+    document.getElementById('togglePw').addEventListener('click', () => {
+      const pw = document.getElementById('password');
+      const icon = document.querySelector('#togglePw i');
+      if (pw.type === 'password') { pw.type = 'text'; icon.className = 'fa-solid fa-eye-slash'; }
+      else { pw.type = 'password'; icon.className = 'fa-solid fa-eye'; }
+    });
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errorBox = document.getElementById('errorBox');
+      const submitBtn = document.getElementById('submitBtn');
+      errorBox.style.display = 'none';
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = 'Logging in...';
+
+      try {
+        const data = await api.login({
+          email: document.getElementById('email').value,
+          password: document.getElementById('password').value
+        });
+        const roleHome = {
+          public: 'dashboard.html',
+          investigator: 'investigator-dashboard.html',
+          supervisor: 'supervisor-dashboard.html',
+          admin: 'admin-dashboard.html'
+        };
+        window.location.href = roleHome[data.user.role] || 'dashboard.html';
+      } catch (err) {
+        errorBox.textContent = err.message;
+        errorBox.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Login to Portal';
+      }
+    });
+  </script>
+</body>
+</html>

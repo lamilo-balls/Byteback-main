@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Upload Evidence — ByteBack</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body style="background:#f8f9fa;">
+  <div id="appHeader"></div>
+
+  <main class="flow-wrap">
+    <div id="stepIndicator"></div>
+    <h1 class="flow-title">Upload Evidence</h1>
+    <p class="flow-sub">Attach screenshots, documents, or files that support your complaint.</p>
+
+    <div class="upload-card">
+      <div class="dropzone" id="dropzone">
+        <div class="dropzone-icon">⬆</div>
+        <h3>Click to upload files</h3>
+        <p>or drag and drop — PNG, JPG, PDF, DOCX up to 25MB each</p>
+      </div>
+      <input type="file" id="fileInput" multiple style="display:none;" />
+      <div id="fileList"></div>
+    </div>
+
+    <div class="flow-actions">
+      <a href="report-details.html" class="flow-btn-back">← Back</a>
+      <button id="nextBtn" class="flow-btn-next" style="width:280px;">Next: Review →</button>
+    </div>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script>
+    let files = JSON.parse(sessionStorage.getItem('report_evidence_files') || '[]');
+
+    function fileIcon(name) {
+      if (/\.(png|jpe?g|gif|webp)$/i.test(name)) return '🖼';
+      return '📄';
+    }
+
+    function normalizeEvidenceItem(file) {
+      if (typeof file === 'string') {
+        return { name: file, size: 0, type: '', dataUrl: '' };
+      }
+      return {
+        name: file.name || 'Attachment',
+        size: file.size || 0,
+        type: file.type || '',
+        dataUrl: file.dataUrl || ''
+      };
+    }
+    function formatSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function renderFiles() {
+      const listEl = document.getElementById('fileList');
+      listEl.innerHTML = files.map((f, i) => `
+        <div class="file-row">
+          <div class="file-row-icon">${fileIcon(f.name || f)}</div>
+          <div class="file-row-main">
+            <div class="fname">${f.name || f}</div>
+            <div class="fsize">${formatSize(f.size || 0)}</div>
+          </div>
+          <button class="file-row-remove" data-idx="${i}">✕</button>
+        </div>
+      `).join('');
+      listEl.querySelectorAll('.file-row-remove').forEach(btn => {
+        btn.addEventListener('click', () => {
+          files.splice(Number(btn.dataset.idx), 1);
+          renderFiles();
+        });
+      });
+    }
+    renderFiles();
+
+    document.getElementById('dropzone').addEventListener('click', () => document.getElementById('fileInput').click());
+    document.getElementById('fileInput').addEventListener('change', (e) => {
+      Array.from(e.target.files).forEach(f => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          files.push({
+            name: f.name,
+            size: f.size,
+            type: f.type,
+            dataUrl: reader.result
+          });
+          renderFiles();
+        };
+        reader.readAsDataURL(f);
+      });
+      e.target.value = '';
+    });
+
+    // Note: since there's no file-storage backend wired up yet, only
+    // filenames/sizes are recorded as "evidence" metadata — actual file
+    // bytes are not uploaded anywhere yet.
+    document.getElementById('nextBtn').addEventListener('click', () => {
+      sessionStorage.setItem('report_evidence_files', JSON.stringify(files));
+      sessionStorage.setItem('report_evidence', JSON.stringify(files.map(normalizeEvidenceItem)));
+      window.location.href = 'report-review.html';
+    });
+
+    (async () => {
+      const me = await renderAppHeader('file');
+      if (!me) return;
+      if (!sessionStorage.getItem('report_category')) { window.location.href = 'report-category.html'; return; }
+      document.getElementById('stepIndicator').innerHTML = renderStepIndicator(2);
+    })();
+  </script>
+</body>
+</html>

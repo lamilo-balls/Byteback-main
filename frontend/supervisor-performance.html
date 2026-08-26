@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Investigator Performance — ByteBack</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body style="margin:0;">
+  <div id="staffShell"></div>
+
+  <script src="js/api.js"></script>
+  <script>
+    function slaColor(v) {
+      if (v === null) return '#9ca3af';
+      if (v >= 90) return '#16a34a';
+      if (v >= 80) return '#c17d09';
+      return '#d1352b';
+    }
+
+    (async () => {
+      const me = await renderStaffShell({
+        role: 'supervisor',
+        activeHref: 'supervisor-performance.html',
+        title: 'Investigator Performance',
+        subtitle: 'Resolution speed and case quality across the team'
+      });
+      if (!me) return;
+
+      try {
+        const data = await api.supInvestigators();
+        const rows = data.investigators;
+
+        document.getElementById('staffContent').innerHTML = `
+          <div class="staff-table-card">
+            <h3 style="margin-bottom:16px;">Team Performance — This Month</h3>
+            <table class="staff-data-table">
+              <thead><tr><th>Investigator</th><th>Active Cases</th><th>Resolved</th><th>Avg. Response</th><th>Overdue</th><th>SLA Compliance</th></tr></thead>
+              <tbody>
+                ${rows.length === 0 ? '<tr><td colspan="6" style="color:#9ca3af; padding:20px 0;">No investigators yet.</td></tr>' : rows.map(r => `
+                  <tr>
+                    <td style="font-weight:600; color:#1f2937;">${r.fullName}</td>
+                    <td>${r.activeCases}</td>
+                    <td>${r.resolvedCount}</td>
+                    <td>${r.avgResponseDays !== null ? r.avgResponseDays.toFixed(1) + ' days' : '—'}</td>
+                    <td class="${r.overdueCount > 0 ? 'priority-high' : ''}" style="${r.overdueCount === 0 ? 'color:#4c576f;' : ''}">${r.overdueCount}</td>
+                    <td>
+                      ${r.slaCompliance === null ? '<span style="color:#9ca3af;">No data</span>' : `
+                        <div style="display:flex; align-items:center; gap:10px;">
+                          <div style="width:110px; height:8px; background:#eef1f5; border-radius:4px; overflow:hidden;">
+                            <div style="width:${r.slaCompliance}%; height:100%; background:${slaColor(r.slaCompliance)};"></div>
+                          </div>
+                          <span style="font-weight:600; color:${slaColor(r.slaCompliance)};">${r.slaCompliance}%</span>
+                        </div>
+                      `}
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      } catch (e) {
+        document.getElementById('staffContent').innerHTML = `<div class="error-box">${e.message}</div>`;
+      }
+    })();
+  </script>
+</body>
+</html>

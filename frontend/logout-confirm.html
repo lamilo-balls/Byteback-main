@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Log Out — ByteBack</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body style="background:#f8f9fa;">
+  <div id="appHeader"></div>
+  <main class="flow-wrap">
+    <h1 class="flow-title">Welcome back</h1>
+    <p class="flow-sub">Here's an overview of your account.</p>
+  </main>
+
+  <div class="logout-overlay">
+    <div class="logout-modal">
+      <div class="logout-warn-circ">↩</div>
+      <h2>Log Out of ByteBack?</h2>
+      <p>You'll need to sign in again to access your complaints and account settings.</p>
+      <div class="logout-actions">
+        <button id="cancelBtn" class="logout-cancel-btn">Cancel</button>
+        <button id="confirmBtn" class="logout-confirm-btn">↩ Log Out</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script>
+    (async () => { await renderAppHeader(''); })();
+
+    document.getElementById('cancelBtn').addEventListener('click', () => {
+      window.history.length > 1 ? window.history.back() : (window.location.href = 'dashboard.html');
+    });
+    document.getElementById('confirmBtn').addEventListener('click', async () => {
+      await api.logout();
+      window.location.href = 'index.html';
+    });
+  </script>
+</body>
+</html>

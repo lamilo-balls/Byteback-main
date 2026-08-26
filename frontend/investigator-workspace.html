@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Investigation Workspace — ByteBack</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body style="margin:0;">
+  <div id="staffShell"></div>
+
+  <script src="js/api.js"></script>
+  <script>
+    const caseId = getSelectedCaseId();
+    function timeAgo(dateStr) {
+      const d = new Date(dateStr);
+      return d.toLocaleDateString('en-US',{month:'short',day:'2-digit',year:'numeric'}) + ' · ' + d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    }
+
+    let complaint, notes;
+    let availableCases = [];
+
+    async function load() {
+      const [casesData, workspaceData] = await Promise.all([api.invCases(), api.invWorkspace(caseId)]);
+      availableCases = casesData.cases;
+      complaint = workspaceData.complaint;
+      notes = workspaceData.notes;
+      render();
+    }
+
+    function renderCaseSelector() {
+      return `
+        <div class="flow-field" style="margin-bottom:18px;">
+          <label>Switch Case</label>
+          <select id="caseSelect">
+            ${availableCases.map(c => `
+              <option value="${c.id}" ${c.id === complaint.id ? 'selected' : ''}>${c.referenceNumber} — ${c.submittedBy ? c.submittedBy.fullName : 'Unknown'}</option>
+            `).join('')}
+          </select>
+        </div>
+      `;
+    }
+
+    function render() {
+      const c = complaint;
+      document.querySelector('.staff-topbar h1').textContent = `${c.referenceNumber} — Investigation Workspace`;
+      document.querySelector('.staff-topbar p').textContent = `${categoryLabel(c.category)} · Filed ${new Date(c.createdAt).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})} · Complainant: ${c.submittedBy ? c.submittedBy.fullName : 'Unknown'}`;
+
+      document.getElementById('staffContent').innerHTML = `
+        ${renderCaseSelector()}
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:24px;">
+          <div style="flex:1; min-width:0;">
+            ${statusBadge(c.status)}
+            <div class="ws-card" style="margin-top:16px;">
+              <h3>Complaint Summary</h3>
+              <p style="font-size:12.5px; color:#4c576f; line-height:1.6; margin:0;">${c.description}</p>
+            </div>
+
+            <div class="ws-card">
+              <h3>Investigation Notes</h3>
+              <div id="notesList">
+                ${notes.length === 0 ? '<p style="font-size:12.5px; color:#9ca3af;">No notes yet.</p>' : notes.slice().reverse().map(n => `
+                  <div class="ws-note">
+                    <div class="ts">${timeAgo(n.createdAt)}</div>
+                    <div class="txt">${n.note}</div>
+                  </div>
+                `).join('')}
+              </div>
+              <div id="notesErrorBox" class="error-box" style="display:none;"></div>
+              <textarea id="newNote" class="ws-note-input" placeholder="Add an investigation note..."></textarea>
+              <button id="addNoteBtn" class="ws-actions-btn primary" style="width:140px;">Add Note</button>
+            </div>
+          </div>
+
+          <div style="width:380px; flex-shrink:0;">
+            <div class="ws-card">
+              <h3>Actions</h3>
+              <a href="investigator-update-status.html?id=${c.id}" class="ws-actions-btn primary">🔄 Update Investigation Status</a>
+              <a href="investigator-evidence.html?id=${c.id}" class="ws-actions-btn">📎 Review Evidence</a>
+              <a href="investigator-timeline.html?id=${c.id}" class="ws-actions-btn">🕐 View Complaint Timeline</a>
+              <button id="markResolvedBtn" class="ws-actions-btn">✓ Mark as Resolved</button>
+            </div>
+
+            <div class="ws-card">
+              <h3>Complainant Contact</h3>
+              <div style="font-size:13.5px; font-weight:600; color:#1f2937;">${c.submittedBy ? c.submittedBy.fullName : 'Unknown'}</div>
+              <div style="font-size:12.5px; color:#6b7280; margin-top:4px;">${c.submittedBy ? c.submittedBy.email : ''}</div>
+              <div style="font-size:12.5px; color:#6b7280;">${c.submittedBy && c.submittedBy.phone ? c.submittedBy.phone : ''}</div>
+              <a href="mailto:${c.submittedBy ? c.submittedBy.email : ''}" class="ws-contact-btn">✉ Send Update</a>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('caseSelect').addEventListener('change', (e) => {
+        const selectedId = e.target.value;
+        setSelectedCaseId(selectedId);
+        window.location.href = 'investigator-workspace.html?id=' + selectedId;
+      });
+
+      document.getElementById('addNoteBtn').addEventListener('click', async () => {
+        const errorBox = document.getElementById('notesErrorBox');
+        const text = document.getElementById('newNote').value.trim();
+        errorBox.style.display = 'none';
+        if (!text) return;
+        try {
+          await api.invAddNote(caseId, text);
+          await load();
+        } catch (e) {
+          errorBox.textContent = e.message;
+          errorBox.style.display = 'block';
+        }
+      });
+
+      document.getElementById('markResolvedBtn').addEventListener('click', async () => {
+        if (!confirm('Mark this case as Resolved?')) return;
+        try {
+          await api.invUpdateStatus(caseId, 'resolved', 'Marked resolved from Investigation Workspace.');
+          await load();
+        } catch (e) {
+          alert(e.message);
+        }
+      });
+    }
+
+    (async () => {
+      const me = await renderStaffShell({
+        role: 'investigator',
+        activeHref: 'investigator-workspace.html',
+        title: 'Investigation Workspace',
+        subtitle: 'Loading...'
+      });
+      if (!me) return;
+      if (!caseId) {
+        document.getElementById('staffContent').innerHTML = '<div class="error-box">No case specified. Open a case from Assigned Cases.</div>';
+        return;
+      }
+      try {
+        await load();
+      } catch (e) {
+        document.getElementById('staffContent').innerHTML = `<div class="error-box">${e.message}</div>`;
+      }
+    })();
+  </script>
+</body>
+</html>

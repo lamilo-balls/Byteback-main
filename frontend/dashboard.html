@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — ByteBack</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body style="background:#f8f9fa;">
+  <div id="appHeader"></div>
+
+  <main class="dash-wrap">
+    <div class="dash-top">
+      <div>
+        <h1 id="welcomeMsg">Welcome back</h1>
+        <p>Here's an overview of your cybercrime complaints.</p>
+      </div>
+      <a href="report-category.html"><button class="dash-file-btn">+&nbsp; File a New Complaint</button></a>
+    </div>
+
+    <div class="stat-grid" id="statGrid"></div>
+
+    <div class="dash-grid">
+      <div class="dash-card" id="complaints">
+        <div class="dash-card-header">
+          <h3>Recent Complaints</h3>
+          <a href="#complaints">View all →</a>
+        </div>
+        <div id="complaintList"></div>
+      </div>
+
+      <div>
+        <div class="dash-card track-card" style="margin-bottom:24px;">
+          <h3 style="font-size:14.5px; margin:0 0 4px;">Track by Reference</h3>
+          <input id="refInput" placeholder="e.g. CR-2026-8492" />
+          <button id="trackBtn">🔍&nbsp; Check Status</button>
+          <p id="trackResult" style="font-size:12px; margin-top:10px;"></p>
+        </div>
+
+        <div class="dash-card help-card">
+          <h3 style="font-size:14px; margin:0;">Need Help?</h3>
+          <p class="desc">Our support team is available 24/7 if you need assistance with your complaint.</p>
+          <div class="contact-line">📞&nbsp; 1-800-CYBER-REP</div>
+          <div class="contact-line">✉️&nbsp; support@byteback.gov</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script>
+    const statusMeta = {
+      submitted: { pill: 'gray', label: 'Submitted' },
+      under_review: { pill: 'amber', label: 'Under Review' },
+      investigating: { pill: 'blue', label: 'Under Investigation' },
+      resolved: { pill: 'green', label: 'Resolved' },
+      closed: { pill: 'gray', label: 'Closed' }
+    };
+
+    (async () => {
+      const me = await renderAppHeader('dashboard');
+      if (!me) return;
+      document.getElementById('welcomeMsg').textContent = `Welcome back, ${me.fullName.split(' ')[0]}`;
+
+      try {
+        const { complaints } = await api.listComplaints();
+
+        const total = complaints.length;
+        const active = complaints.filter(c => ['submitted','under_review','investigating'].includes(c.status)).length;
+        const resolved = complaints.filter(c => c.status === 'resolved').length;
+        const closed = complaints.filter(c => c.status === 'closed').length;
+
+        document.getElementById('statGrid').innerHTML = `
+          <div class="stat-card"><div class="stat-icon" style="background:#eaf0ff; color:#2563eb;">📄</div><div class="stat-value">${total}</div><div class="stat-label">Total Complaints</div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:#fdf3e0; color:#c17d09;">⏱</div><div class="stat-value">${active}</div><div class="stat-label">Active / In Progress</div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:#e6f8ee; color:#16a34a;">✓</div><div class="stat-value">${resolved}</div><div class="stat-label">Resolved</div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:#eef1f5; color:#4c576f;">🛡</div><div class="stat-value">${closed}</div><div class="stat-label">Closed</div></div>
+        `;
+
+        const listEl = document.getElementById('complaintList');
+        if (complaints.length === 0) {
+          listEl.innerHTML = '<div class="empty-state">You haven\'t filed any complaints yet.</div>';
+        } else {
+          listEl.innerHTML = complaints.slice(0, 5).map(c => {
+            const meta = statusMeta[c.status] || statusMeta.submitted;
+            return `
+              <a href="complaint-details.html?id=${c.id}" class="complaint-row" style="text-decoration:none;">
+                <div class="complaint-row-icon">✉</div>
+                <div class="complaint-row-main">
+                  <div class="title">${categoryLabel(c.category)} · ${c.referenceNumber}</div>
+                  <div class="meta">Filed ${new Date(c.createdAt).toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' })}</div>
+                </div>
+                <span class="status-pill ${meta.pill}">${meta.label}</span>
+                <span class="complaint-row-chevron">›</span>
+              </a>
+            `;
+          }).join('');
+        }
+      } catch (e) {
+        document.getElementById('statGrid').innerHTML = `<div class="error-box">${e.message}</div>`;
+      }
+    })();
+
+    document.getElementById('trackBtn').addEventListener('click', async () => {
+      const ref = document.getElementById('refInput').value.trim();
+      const resultEl = document.getElementById('trackResult');
+      if (!ref) return;
+      resultEl.textContent = 'Checking...';
+      try {
+        const data = await api.trackComplaint(ref);
+        resultEl.textContent = `Status: ${data.status.replace('_',' ')} — ${categoryLabel(data.category)}`;
+        resultEl.style.color = '#16a34a';
+      } catch (e) {
+        resultEl.textContent = e.message;
+        resultEl.style.color = '#dc2626';
+      }
+    });
+  </script>
+</body>
+</html>

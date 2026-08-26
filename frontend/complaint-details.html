@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Complaint Details — ByteBack</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body style="background:#f8f9fa;">
+  <div id="appHeader"></div>
+
+  <main class="flow-wrap">
+    <div id="content">Loading...</div>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script>
+    const statusMeta = {
+      submitted: { pill: 'gray', label: 'Submitted' },
+      under_review: { pill: 'amber', label: 'Under Review' },
+      investigating: { pill: 'blue', label: 'Under Investigation' },
+      resolved: { pill: 'green', label: 'Resolved' },
+      closed: { pill: 'gray', label: 'Closed' }
+    };
+    function fileIcon(name) { return /\.(png|jpe?g|gif|webp)$/i.test(name) ? '🖼' : '📄'; }
+    function getParam(name) { return new URLSearchParams(window.location.search).get(name); }
+
+    (async () => {
+      const me = await renderAppHeader('complaints');
+      if (!me) return;
+
+      const id = getParam('id');
+      const content = document.getElementById('content');
+      if (!id) { content.innerHTML = '<div class="error-box">No complaint specified.</div>'; return; }
+
+      try {
+        const data = await api.getComplaint(id);
+        const c = data.complaint;
+        const meta = statusMeta[c.status] || statusMeta.submitted;
+        const invInitials = c.assignedTo ? c.assignedTo.fullName.split(' ').map(p => p[0]).slice(0,2).join('').toUpperCase() : '';
+
+        content.innerHTML = `
+          <div class="cd-crumb"><a href="dashboard.html#complaints" style="color:#6b7280;">My Complaints</a> › ${c.referenceNumber}</div>
+          <div class="cd-top">
+            <div>
+              <h1 class="cd-title">${c.title}</h1>
+              <p class="cd-sub">${c.referenceNumber} · Filed on ${new Date(c.createdAt).toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}</p>
+            </div>
+            <div class="cd-top-right">
+              <span class="status-pill ${meta.pill}">${meta.label}</span>
+              <a href="#" class="cd-timeline-btn">🕐 View Timeline</a>
+            </div>
+          </div>
+
+          <div class="cd-grid">
+            <div>
+              <div class="cd-card">
+                <h3>Description</h3>
+                <p class="desc">${c.description}</p>
+              </div>
+              <div class="cd-card">
+                <h3>Incident Information</h3>
+                <div class="rcard-kv"><div class="k">Category</div><div class="v">${categoryLabel(c.category)}</div></div>
+                <div class="rcard-kv"><div class="k">Platform</div><div class="v">${c.platform || '—'}</div></div>
+                <div class="rcard-kv"><div class="k">Suspect Info</div><div class="v">${c.suspectInfo || '—'}</div></div>
+                <div class="rcard-kv"><div class="k">Estimated Loss</div><div class="v">${c.estimatedLoss ? '₱ ' + Number(c.estimatedLoss).toLocaleString(undefined,{minimumFractionDigits:2}) : '₱ 0.00'}</div></div>
+              </div>
+              <div class="cd-card">
+                <h3>Evidence Files (${(c.evidence||[]).length})</h3>
+                ${(c.evidence && c.evidence.length) ? c.evidence.map(f => `
+                  <div class="file-row">
+                    <div class="file-row-icon">${fileIcon(f)}</div>
+                    <div class="file-row-main"><div class="fname">${f}</div></div>
+                  </div>
+                `).join('') : '<p style="font-size:13px; color:#9ca3af; margin:0;">No evidence attached.</p>'}
+              </div>
+            </div>
+            <div>
+              <div class="cd-card">
+                <h3>Assigned Investigator</h3>
+                ${c.assignedTo ? `
+                  <div class="cd-inv-avatar">${invInitials}</div>
+                  <div class="cd-inv-name">${c.assignedTo.fullName}</div>
+                  <div class="cd-inv-role">Cybercrime Response Unit</div>
+                ` : '<p style="font-size:13px; color:#9ca3af; margin:0;">Not yet assigned.</p>'}
+              </div>
+              <div class="cd-card">
+                <h3>Latest Remarks</h3>
+                <p class="desc">${data.latestRemark || 'No updates yet. You will be notified as soon as there is progress on your case.'}</p>
+              </div>
+            </div>
+          </div>
+        `;
+      } catch (e) {
+        content.innerHTML = `<div class="error-box">${e.message}</div>`;
+      }
+    })();
+  </script>
+</body>
+</html>

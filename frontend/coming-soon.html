@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Coming Soon — ByteBack</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <style>
+    body.coming-soon-body { background:#f8f9fa; margin:0; font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    .coming-header { background:#fff; border-bottom:1px solid #e2e8f0; }
+    .coming-header .inner { max-width:1280px; margin:0 auto; padding:0 32px; height:64px; display:flex; align-items:center; justify-content:space-between; }
+    .coming-brand { display:flex; align-items:center; gap:12px; font-weight:700; font-size:20px; color:#102a43; text-decoration:none; }
+    .coming-brand-icon { width:32px; height:32px; border-radius:6px; background:#2563eb; color:#fff; display:flex; align-items:center; justify-content:center; font-size:14px; }
+    .coming-wrap { display:flex; justify-content:center; padding:96px 32px; }
+    .coming-card { width:100%; max-width:640px; background:#fff; border:1px solid #e5e7eb; border-radius:20px; box-shadow:0 25px 35px rgba(15,23,61,0.08); padding:48px; text-align:center; }
+    .coming-badge { display:inline-flex; align-items:center; gap:10px; font-size:12px; font-weight:700; color:#2563eb; letter-spacing:0.12em; text-transform:uppercase; margin-bottom:24px; }
+    .coming-card h1 { font-size:34px; margin:0 0 16px; color:#0f172a; }
+    .coming-card p { color:#475569; font-size:16px; line-height:1.75; margin:0 0 32px; }
+    .coming-card .btn-return { background:#0f2c59; color:#fff; border:none; border-radius:12px; padding:14px 24px; font-size:15px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; gap:10px; }
+    .coming-site-footer { background:#fff; border-top:1px solid #e2e8f0; padding:24px 32px; }
+    .coming-site-footer .inner { max-width:1280px; margin:0 auto; display:flex; justify-content:space-between; align-items:center; font-size:12px; color:#94a3b8; flex-wrap:wrap; gap:12px; }
+    .coming-site-footer .links { display:flex; flex-wrap:wrap; gap:24px; }
+    .coming-site-footer a { color:#94a3b8; text-decoration:none; }
+    @media (max-width: 720px) {
+      .coming-header .inner, .coming-wrap, .coming-site-footer .inner { padding:0 20px; }
+      .coming-card { padding:32px; }
+    }
+  </style>
+</head>
+<body class="coming-soon-body">
+  <header class="coming-header">
+    <div class="inner">
+      <a href="index.html" class="coming-brand"><span class="coming-brand-icon"><i class="fa-solid fa-shield-halved"></i></span> ByteBack</a>
+    </div>
+  </header>
+
+  <div class="coming-wrap">
+    <div class="coming-card">
+      <span class="coming-badge"><i class="fa-solid fa-hourglass-half"></i> Coming Soon</span>
+      <h1>Security Disclosure & Help Center</h1>
+      <p>These features are still under development. We’re working on them and they will be available soon.</p>
+      <a href="register.html" class="btn-return"><i class="fa-solid fa-arrow-left"></i> Return to Register</a>
+    </div>
+  </div>
+
+  <footer class="coming-site-footer">
+    <div class="inner">
+      <span>© 2026 ByteBack / CyberReport Management System.</span>
+      <div class="links">
+        <a href="privacy-consent.html">Privacy Policy</a>
+        <a href="terms.html">Terms of Use</a>
+        <a href="coming-soon.html">Security Disclosure</a>
+        <a href="coming-soon.html">Help Center</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

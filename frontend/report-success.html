@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Report Submitted — ByteBack</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a href="index.html" class="brand"><span class="brand-icon">🛡</span> ByteBack</a>
+    </div>
+  </header>
+
+  <main class="success-wrap">
+    <div class="card">
+      <div class="success-check">✓</div>
+      <h1 style="font-size:22px; color:var(--navy);">Report Submitted</h1>
+      <p style="color:var(--slate-mid); font-size:14px;">Save this reference number to track your complaint's status.</p>
+      <div class="ref-number" id="refNumber"></div>
+      <a href="dashboard.html" class="btn btn-primary btn-block">Back to Dashboard</a>
+    </div>
+  </main>
+
+  <script>
+    const ref = sessionStorage.getItem('last_reference_number');
+    if (!ref) window.location.href = 'dashboard.html';
+    document.getElementById('refNumber').textContent = ref;
+  </script>
+</body>
+</html>

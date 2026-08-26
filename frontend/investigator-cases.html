@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Assigned Cases — ByteBack</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body style="margin:0;">
+  <div id="staffShell"></div>
+
+  <script src="js/api.js"></script>
+  <script>
+    const invStatusMeta = {
+      submitted: { pill: 'amber', label: 'Assigned' },
+      under_review: { pill: 'amber', label: 'Info Requested' },
+      investigating: { pill: 'blue', label: 'Under Investigation' },
+      resolved: { pill: 'green', label: 'Resolved' },
+      closed: { pill: 'gray', label: 'Closed' }
+    };
+    const priorityClass = { high: 'priority-high', medium: 'priority-medium', low: 'priority-low', critical: 'priority-high' };
+
+    let allCases = [];
+    let filters = { search: '', highPriorityOnly: false, thisWeekOnly: false };
+
+    function isOverdue(c) {
+      const days = (Date.now() - c.createdAt) / (1000 * 60 * 60 * 24);
+      return (c.status === 'investigating' || c.status === 'under_review') && days > 14;
+    }
+
+    function render() {
+      const tbody = document.getElementById('tbody');
+      let list = allCases;
+      if (filters.search) {
+        const q = filters.search.toLowerCase();
+        list = list.filter(c => c.referenceNumber.toLowerCase().includes(q) || (c.submittedBy && c.submittedBy.fullName.toLowerCase().includes(q)));
+      }
+      if (filters.highPriorityOnly) list = list.filter(c => c.priority === 'high' || c.priority === 'critical');
+      if (filters.thisWeekOnly) list = list.filter(c => (Date.now() - c.createdAt) < 7 * 24 * 60 * 60 * 1000);
+
+      document.querySelector('.staff-topbar p').textContent = `${allCases.length} case${allCases.length === 1 ? '' : 's'} currently assigned to you`;
+      document.getElementById('paginationLine').textContent = `Showing 1–${list.length} of ${list.length} cases`;
+
+      if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="color:#9ca3af; padding:20px 0;">No cases match this filter.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = list.map(c => {
+        const meta = isOverdue(c) ? { pill: 'red', label: 'Overdue' } : (invStatusMeta[c.status] || invStatusMeta.submitted);
+        return `
+          <tr>
+            <td>${c.referenceNumber}</td>
+            <td>${categoryLabel(c.category)}</td>
+            <td>${c.submittedBy ? c.submittedBy.fullName : 'Unknown'}</td>
+            <td>${new Date(c.createdAt).toLocaleDateString('en-US',{month:'short',day:'2-digit',year:'numeric'})}</td>
+            <td class="${priorityClass[c.priority] || ''}">${c.priority.charAt(0).toUpperCase() + c.priority.slice(1)}</td>
+            <td><span class="status-pill ${meta.pill === 'red' ? '' : meta.pill}" style="${meta.pill === 'red' ? 'background:#fbeaea; color:#d1352b;' : ''}">${meta.label}</span></td>
+            <td><a href="investigator-workspace.html?id=${c.id}" onclick="setSelectedCaseId('${c.id}')" style="color:#2563eb; font-weight:600; font-size:12.5px;">Open →</a></td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    (async () => {
+      const me = await renderStaffShell({
+        role: 'investigator',
+        activeHref: 'investigator-cases.html',
+        title: 'Assigned Cases',
+        subtitle: 'Loading...'
+      });
+      if (!me) return;
+
+      document.getElementById('staffContent').innerHTML = `
+        <div class="filter-bar">
+          <input id="searchInput" class="filter-search" placeholder="🔍 Search by reference or complainant" />
+          <button class="filter-chip active" id="chipAll">All Status</button>
+          <button class="filter-chip" id="chipHigh">High Priority</button>
+          <button class="filter-chip" id="chipWeek">This Week</button>
+        </div>
+
+        <div class="staff-table-card">
+          <h3 style="margin-bottom:16px;">All Cases</h3>
+          <table class="staff-data-table">
+            <thead><tr><th>Reference</th><th>Category</th><th>Complainant</th><th>Date Filed</th><th>Priority</th><th>Status</th><th></th></tr></thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+
+        <div class="table-pagination">
+          <span id="paginationLine"></span>
+          <span><span style="color:#9ca3af;">‹ Prev</span> &nbsp; <span style="color:#333e56; font-weight:600;">Next ›</span></span>
+        </div>
+      `;
+
+      document.getElementById('searchInput').addEventListener('input', (e) => { filters.search = e.target.value; render(); });
+      document.getElementById('chipHigh').addEventListener('click', (e) => { filters.highPriorityOnly = !filters.highPriorityOnly; e.target.classList.toggle('active'); render(); });
+      document.getElementById('chipWeek').addEventListener('click', (e) => { filters.thisWeekOnly = !filters.thisWeekOnly; e.target.classList.toggle('active'); render(); });
+
+      try {
+        const data = await api.invCases();
+        allCases = data.cases;
+        document.querySelector('.staff-topbar p').textContent = `${allCases.length} cases currently assigned to you`;
+        render();
+      } catch (e) {
+        document.getElementById('staffContent').innerHTML = `<div class="error-box">${e.message}</div>`;
+      }
+    })();
+  </script>
+</body>
+</html>

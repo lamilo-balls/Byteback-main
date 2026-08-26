@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>File a Complaint — ByteBack</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body style="background:#f8f9fa;">
+  <div id="appHeader"></div>
+
+  <main class="flow-wrap">
+    <div id="stepIndicator"></div>
+    <h1 class="flow-title">File a New Complaint</h1>
+    <p class="flow-sub">Select the category that best describes what happened.</p>
+
+    <div class="cat-grid3" id="catGrid"></div>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script>
+    const CATEGORY_ICONS = {
+      online_scam: '$', identity_theft: '🪪', cyberbullying: '💬',
+      phishing: '✉', hacking: '💻', impersonation: '🎭'
+    };
+
+    (async () => {
+      const me = await renderAppHeader('file');
+      if (!me) return;
+      document.getElementById('stepIndicator').innerHTML = renderStepIndicator(0);
+
+      document.getElementById('catGrid').innerHTML = CATEGORIES.map(c => `
+        <button class="cat-card3" data-key="${c.key}" data-label="${c.label}">
+          <div class="cat-card3-icon">${CATEGORY_ICONS[c.key]}</div>
+          <h3>${c.label}</h3>
+          <p>${c.desc}</p>
+        </button>
+      `).join('');
+
+      document.querySelectorAll('.cat-card3').forEach(btn => {
+        btn.addEventListener('click', () => {
+          sessionStorage.setItem('report_category', btn.dataset.key);
+          sessionStorage.setItem('report_categoryLabel', btn.dataset.label);
+          window.location.href = 'report-details.html';
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

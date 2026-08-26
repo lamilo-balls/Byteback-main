@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Welcome to ByteBack</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .success2-wrap { background:#f8f9fa; min-height:calc(100vh - 64px - 64px); display:flex; align-items:center; justify-content:center; padding:60px 20px; }
+    .success2-card { max-width:560px; width:100%; background:#fff; border:1px solid #e5e7eb; border-radius:20px; box-shadow:0 20px 22.5px rgba(10,20,46,0.16); padding:47px 40px; text-align:center; }
+    .success2-circ { width:84px; height:84px; border-radius:9999px; background:#e6f8ee; display:flex; align-items:center; justify-content:center; font-size:32px; color:#16a34a; font-weight:700; margin:0 auto 32px; }
+    .success2-card h1 { font-size:22px; font-weight:700; color:#1f2937; margin:0 0 12px; }
+    .success2-card p { font-size:13.5px; color:#6b7280; line-height:1.5; margin:0 0 36px; }
+    .success2-btn { display:inline-block; background:#0f2c59; color:#fff; border:none; border-radius:12px; padding:16px 40px; font-size:15.5px; font-weight:700; text-decoration:none; }
+  </style>
+</head>
+<body style="margin:0;">
+
+  <header class="auth2-header">
+    <div class="inner">
+      <a href="index.html" class="auth2-brand"><span class="auth2-brand-icon">B</span> ByteBack</a>
+      <div style="display:flex; align-items:center; gap:16px; font-size:14px;">
+        <span style="color:#6b7280;">Already verified?</span>
+        <a href="login.html" style="color:#2563eb; font-weight:600;">Login</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="success2-wrap">
+    <div class="success2-card">
+      <div class="success2-circ">✓</div>
+      <h1>Account Created Successfully</h1>
+      <p id="successMsg">Welcome to ByteBack. Your account has been verified and is ready to use. You can now log in to file and track cybercrime complaints.</p>
+      <a href="login.html" class="success2-btn">Continue to Login</a>
+    </div>
+  </div>
+
+  <footer class="auth2-dark-footer">
+    <div class="inner">
+      <span>© 2026 ByteBack Management System. Official Government Portal.</span>
+      <div class="links">
+        <a href="privacy-consent.html">Privacy Policy</a>
+        <a href="terms.html">Terms of Use</a>
+        <a href="#">Security Disclosure</a>
+        <a href="#">Help Center</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/api.js"></script>
+  <script>
+    api.me().then(data => {
+      const first = data.user.fullName.split(' ')[0];
+      document.getElementById('successMsg').textContent =
+        `Welcome to ByteBack, ${first}. Your account has been verified and is ready to use. You can now log in to file and track cybercrime complaints.`;
+    }).catch(() => {});
+  </script>
+</body>
+</html>

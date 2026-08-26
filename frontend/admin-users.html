@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>User Management — ByteBack</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body style="margin:0;">
+  <div id="staffShell"></div>
+
+  <script src="js/api.js"></script>
+  <script>
+    const roleMeta = {
+      public: { bg:'#eef1f5', color:'#4c576f', label:'Victim' },
+      investigator: { bg:'#eaf0ff', color:'#2563eb', label:'Investigator' },
+      supervisor: { bg:'#f0ecfe', color:'#7c3aed', label:'Supervisor' },
+      admin: { bg:'#fef1e5', color:'#b45309', label:'Administrator' }
+    };
+    let allUsers = [];
+    let filters = { search:'', role:'', status:'' };
+    let currentUserId = null;
+
+    function render() {
+      let list = allUsers;
+      if (filters.search) {
+        const q = filters.search.toLowerCase();
+        list = list.filter(u => u.fullName.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.role.includes(q));
+      }
+      if (filters.role) list = list.filter(u => u.role === filters.role);
+      if (filters.status === 'active') list = list.filter(u => u.isActive !== false);
+      if (filters.status === 'suspended') list = list.filter(u => u.isActive === false);
+
+      const counts = { public:0, investigator:0, supervisor:0, admin:0 };
+      allUsers.forEach(u => { if (counts[u.role] !== undefined) counts[u.role]++; });
+      document.getElementById('kpiVictims').textContent = counts.public;
+      document.getElementById('kpiInvestigators').textContent = counts.investigator;
+      document.getElementById('kpiSupervisors').textContent = counts.supervisor;
+      document.getElementById('kpiAdmins').textContent = counts.admin;
+      document.querySelector('.staff-topbar p').textContent = `${allUsers.length} registered users across all roles`;
+
+      const tbody = document.getElementById('tbody');
+      if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="color:#9ca3af; padding:20px 0;">No users match this filter.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = list.map(u => {
+        const rm = roleMeta[u.role] || roleMeta.public;
+        const active = u.isActive !== false;
+        const canDelete = u.id !== currentUserId && u.role !== 'admin';
+        return `
+          <tr data-id="${u.id}">
+            <td style="font-weight:600; color:#1f2937;">${u.fullName}</td>
+            <td>${u.email}</td>
+            <td><span class="role-pill" style="background:${rm.bg}; color:${rm.color};">${rm.label}</span></td>
+            <td><span class="status-pill ${active ? 'green' : ''}" style="${active ? '' : 'background:#fbeaea; color:#d1352b;'}">${active ? 'Active' : 'Suspended'}</span></td>
+            <td>${new Date(u.createdAt).toLocaleDateString('en-US',{month:'short',day:'2-digit',year:'numeric'})}</td>
+            <td style="display:flex; gap:8px; justify-content:flex-end;">
+              <button class="editUserBtn" style="background:none; border:none; color:#2563eb; font-weight:600; font-size:12.5px; cursor:pointer;">Edit ›</button>
+              ${canDelete ? `<button class="deleteUserBtn" style="background:none; border:none; color:#d1352b; font-weight:600; font-size:12.5px; cursor:pointer;">Delete</button>` : ''}
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      tbody.querySelectorAll('.editUserBtn').forEach(btn => {
+        btn.addEventListener('click', (e) => openEditPanel(Number(e.target.closest('tr').dataset.id)));
+      });
+
+      tbody.querySelectorAll('.deleteUserBtn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const row = e.target.closest('tr');
+          const id = Number(row.dataset.id);
+          const user = allUsers.find(x => x.id === id);
+          if (!user) return;
+          if (!confirm(`Delete ${user.fullName}? This action cannot be undone.`)) return;
+
+          try {
+            await api.admDeleteUser(id);
+            await loadAll();
+          } catch (err) {
+            alert(err.message);
+          }
+        });
+      });
+    }
+
+    function openEditPanel(id) {
+      const u = allUsers.find(x => x.id === id);
+      const panel = document.getElementById('editPanel');
+      panel.style.display = 'block';
+      panel.innerHTML = `
+        <h3 style="margin-bottom:12px;">Edit ${u.fullName}</h3>
+        <div style="display:flex; gap:16px; align-items:flex-end; flex-wrap:wrap;">
+          <div class="flow-field" style="margin-bottom:0;">
+            <label>Role</label>
+            <select id="editRoleSelect">
+              ${['public','investigator','supervisor','admin'].map(r => `<option value="${r}" ${r===u.role?'selected':''}>${roleMeta[r].label}</option>`).join('')}
+            </select>
+          </div>
+          <button id="saveRoleBtn" class="profile-btn-primary">Save Role</button>
+          <button id="toggleStatusBtn" class="profile-btn-outline">${u.isActive !== false ? 'Suspend User' : 'Reactivate User'}</button>
+          <button id="closeEditBtn" class="profile-btn-outline">Close</button>
+        </div>
+      `;
+      document.getElementById('saveRoleBtn').addEventListener('click', async () => {
+        try { await api.admChangeRole(id, document.getElementById('editRoleSelect').value); await loadAll(); panel.style.display = 'none'; }
+        catch (e) { alert(e.message); }
+      });
+      document.getElementById('toggleStatusBtn').addEventListener('click', async () => {
+        try { await api.admChangeStatus(id, u.isActive === false); await loadAll(); panel.style.display = 'none'; }
+        catch (e) { alert(e.message); }
+      });
+      document.getElementById('closeEditBtn').addEventListener('click', () => { panel.style.display = 'none'; });
+    }
+
+    async function loadAll() {
+      const data = await api.admUsers();
+      allUsers = data.users;
+      render();
+    }
+
+    (async () => {
+      const me = await renderStaffShell({
+        role: 'admin',
+        activeHref: 'admin-users.html',
+        title: 'User Management',
+        subtitle: 'Loading...'
+      });
+      if (!me) return;
+      currentUserId = me.id;
+
+      document.getElementById('staffContent').innerHTML = `
+        <div class="kpi-grid">
+          <div class="kpi-card"><div class="kpi-top-row"><div class="kpi-icon" style="background:#eef1f5; color:#4c576f;">👤</div></div><div class="kpi-value" id="kpiVictims">0</div><div class="kpi-label">Victims</div></div>
+          <div class="kpi-card"><div class="kpi-top-row"><div class="kpi-icon" style="background:#eaf0ff; color:#2563eb;">🕵</div></div><div class="kpi-value" id="kpiInvestigators">0</div><div class="kpi-label">Investigators</div></div>
+          <div class="kpi-card"><div class="kpi-top-row"><div class="kpi-icon" style="background:#f0ecfe; color:#7c3aed;">🛡</div></div><div class="kpi-value" id="kpiSupervisors">0</div><div class="kpi-label">Supervisors</div></div>
+          <div class="kpi-card"><div class="kpi-top-row"><div class="kpi-icon" style="background:#fef1e5; color:#b45309;">⚙</div></div><div class="kpi-value" id="kpiAdmins">0</div><div class="kpi-label">Administrators</div></div>
+        </div>
+
+        <div class="filter-bar">
+          <input id="searchInput" class="filter-search" style="width:300px;" placeholder="🔍 Search by name, email, or role" />
+          <select id="roleFilter" class="filter-select-chip">
+            <option value="">All Roles</option>
+            <option value="public">Victim</option>
+            <option value="investigator">Investigator</option>
+            <option value="supervisor">Supervisor</option>
+            <option value="admin">Administrator</option>
+          </select>
+          <select id="statusFilter" class="filter-select-chip">
+            <option value="">All Statuses</option>
+            <option value="active">Active</option>
+            <option value="suspended">Suspended</option>
+          </select>
+        </div>
+
+        <div class="staff-table-card" id="editPanel" style="display:none; margin-bottom:24px;"></div>
+
+        <div class="staff-table-card">
+          <table class="staff-data-table">
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Joined</th><th></th></tr></thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+      `;
+
+      document.querySelector('.staff-topbar').insertAdjacentHTML('beforeend', `
+        <button id="addUserBtn" class="add-user-btn" style="position:absolute; top:24px; right:80px;">+ Add User</button>
+      `);
+      document.querySelector('.staff-topbar').style.position = 'relative';
+
+      document.getElementById('searchInput').addEventListener('input', (e) => { filters.search = e.target.value; render(); });
+      document.getElementById('roleFilter').addEventListener('change', (e) => { filters.role = e.target.value; render(); });
+      document.getElementById('statusFilter').addEventListener('change', (e) => { filters.status = e.target.value; render(); });
+
+      document.getElementById('addUserBtn').addEventListener('click', () => {
+        const panel = document.getElementById('editPanel');
+        panel.style.display = 'block';
+        panel.innerHTML = `
+          <h3 style="margin-bottom:12px;">Add Staff Account</h3>
+          <div id="createErrorBox" class="error-box" style="display:none;"></div>
+          <div class="profile-row2">
+            <div class="flow-field"><label>Full Name</label><input id="nuFullName" /></div>
+            <div class="flow-field"><label>Email</label><input id="nuEmail" type="email" /></div>
+          </div>
+          <div class="profile-row2">
+            <div class="flow-field"><label>Temporary Password</label><input id="nuPassword" type="password" /></div>
+            <div class="flow-field"><label>Role</label>
+              <select id="nuRole">
+                <option value="investigator">Investigator</option>
+                <option value="supervisor">Supervisor</option>
+                <option value="admin">Administrator</option>
+              </select>
+            </div>
+          </div>
+          <button id="createUserBtn" class="profile-btn-primary">Create Account</button>
+          <button id="closeCreateBtn" class="profile-btn-outline">Cancel</button>
+        `;
+        document.getElementById('closeCreateBtn').addEventListener('click', () => { panel.style.display = 'none'; });
+        document.getElementById('createUserBtn').addEventListener('click', async () => {
+          const errorBox = document.getElementById('createErrorBox');
+          errorBox.style.display = 'none';
+          try {
+            await api.admCreateUser({
+              fullName: document.getElementById('nuFullName').value,
+              email: document.getElementById('nuEmail').value,
+              password: document.getElementById('nuPassword').value,
+              role: document.getElementById('nuRole').value
+            });
+            panel.style.display = 'none';
+            await loadAll();
+          } catch (e) {
+            errorBox.textContent = e.message;
+            errorBox.style.display = 'block';
+          }
+        });
+      });
+
+      try {
+        await loadAll();
+      } catch (e) {
+        document.getElementById('staffContent').innerHTML = `<div class="error-box">${e.message}</div>`;
+      }
+    })();
+  </script>
+</body>
+</html>

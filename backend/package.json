@@ -1,0 +1,22 @@
+{
+  "name": "byteback-backend",
+  "private": true,
+  "version": "0.1.0",
+  "description": "ByteBack cybercrime reporting API - Sails.js + MySQL",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "sails lift"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
+    "mysql2": "^3.23.0",
+    "sails": "^1.5.5",
+    "sails-hook-orm": "^4.0.3",
+    "sails-mysql": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

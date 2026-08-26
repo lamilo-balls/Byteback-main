@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Investigator Dashboard — ByteBack</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body style="margin:0;">
+  <div id="staffShell"></div>
+
+  <script src="js/api.js"></script>
+  <script>
+    const invStatusMeta = {
+      submitted: { pill: 'amber', label: 'Assigned' },
+      under_review: { pill: 'amber', label: 'Info Requested' },
+      investigating: { pill: 'blue', label: 'Under Investigation' },
+      resolved: { pill: 'green', label: 'Resolved' },
+      closed: { pill: 'gray', label: 'Closed' }
+    };
+    const priorityClass = { high: 'priority-high', medium: 'priority-medium', low: 'priority-low', critical: 'priority-high' };
+
+    (async () => {
+      const me = await renderStaffShell({
+        role: 'investigator',
+        activeHref: 'investigator-dashboard.html',
+        title: 'Investigator Dashboard',
+        subtitle: 'Welcome back. Cybercrime Response Unit.'
+      });
+      if (!me) return;
+
+      const content = document.getElementById('staffContent');
+      document.querySelector('.staff-topbar p').textContent = `Welcome back, ${me.fullName}. Cybercrime Response Unit.`;
+
+      try {
+        const data = await api.invDashboard();
+
+        content.innerHTML = `
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-top-row"><div class="kpi-icon" style="background:#eaf0ff; color:#2563eb;">📁</div></div>
+              <div class="kpi-value">${data.counts.assigned}</div>
+              <div class="kpi-label">Assigned Cases</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-top-row"><div class="kpi-icon" style="background:#fdf3e0; color:#c17d09;">⏱</div></div>
+              <div class="kpi-value">${data.counts.investigating}</div>
+              <div class="kpi-label">Active Investigations</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-top-row"><div class="kpi-icon" style="background:#fbeaea; color:#d1352b;">⚠</div></div>
+              <div class="kpi-value">${data.attentionNeeded.length}</div>
+              <div class="kpi-label">Needing Attention</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-top-row"><div class="kpi-icon" style="background:#e6f8ee; color:#16a34a;">✓</div></div>
+              <div class="kpi-value">${data.counts.resolved + data.counts.closed}</div>
+              <div class="kpi-label">Resolved This Month</div>
+            </div>
+          </div>
+
+          <div class="staff-layout-grid">
+            <div class="staff-table-card">
+              <div class="header-row"><h3>My Assigned Cases</h3><a href="investigator-cases.html" class="view-all">View all →</a></div>
+              <table class="staff-data-table">
+                <thead><tr><th>Reference</th><th>Category</th><th>Complainant</th><th>Priority</th><th>Status</th></tr></thead>
+                <tbody>
+                  ${data.recentCases.length === 0 ? '<tr><td colspan="5" style="color:#9ca3af; padding:20px 0;">No cases assigned yet.</td></tr>' : data.recentCases.map(c => {
+                    const meta = invStatusMeta[c.status] || invStatusMeta.submitted;
+                    return `
+                      <tr style="cursor:pointer;" onclick="window.location.href='investigator-workspace.html?id=${c.id}'">
+                        <td>${c.referenceNumber}</td>
+                        <td>${categoryLabel(c.category)}</td>
+                        <td>${c.submittedBy ? c.submittedBy.fullName : 'Unknown'}</td>
+                        <td class="${priorityClass[c.priority] || ''}">${c.priority.charAt(0).toUpperCase() + c.priority.slice(1)}</td>
+                        <td><span class="status-pill ${meta.pill}">${meta.label}</span></td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+
+            <div>
+              <div class="side-card">
+                <h3>Cases Closed (Last 7 Days)</h3>
+                <div class="chart-bars">
+                  ${data.weekDayLabels.map((label, i) => {
+                    const val = data.weeklyClosed[i];
+                    const max = Math.max(1, ...data.weeklyClosed);
+                    return `
+                      <div class="chart-bar-col">
+                        <div class="chart-bar" style="height:${(val / max) * 100}%; min-height:${val > 0 ? '4px' : '0'};"></div>
+                        <div class="chart-bar-label">${label}</div>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+
+              <div class="side-card">
+                <h3>Needs Attention Soonest</h3>
+                ${data.attentionNeeded.length === 0 ? '<p style="font-size:12.5px; color:#9ca3af; margin:0;">Nothing urgent right now.</p>' : data.attentionNeeded.map(c => `
+                  <div class="deadline-item">
+                    <div class="ref">${c.referenceNumber}</div>
+                    <div class="meta">Open ${Math.floor((Date.now() - c.createdAt) / (1000*60*60*24))} day(s)</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        `;
+      } catch (e) {
+        content.innerHTML = `<div class="error-box">${e.message}</div>`;
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Verify Your Email — ByteBack</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body style="margin:0;">
+
+  <header class="auth2-header">
+    <div class="inner">
+      <a href="index.html" class="auth2-brand"><span class="auth2-brand-icon">B</span> ByteBack</a>
+      <div style="display:flex; align-items:center; gap:16px; font-size:14px;">
+        <span style="color:#6b7280;">Wrong email?</span>
+        <a href="register.html" style="color:#2563eb; font-weight:600;">Register</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="auth2-wrap">
+    <div class="auth2-card">
+      <div class="auth2-left">
+        <div class="auth2-left-top">
+          <span class="auth2-left-logo">B</span>
+          <span style="font-weight:700; font-size:16px;">ByteBack</span>
+        </div>
+        <h2>One Last Step</h2>
+        <p class="lead">Verifying your email helps us keep every ByteBack account authentic and protects the integrity of every complaint filed on the platform.</p>
+
+        <div class="auth2-feature">
+          <span class="auth2-feature-icon">🛡</span>
+          <div><h4>Fraud Prevention</h4><p>Verified accounts prevent malicious reports.</p></div>
+        </div>
+        <div class="auth2-feature">
+          <span class="auth2-feature-icon">⚡</span>
+          <div><h4>Instant Access</h4><p>Verification takes seconds.</p></div>
+        </div>
+
+        <div class="auth2-ssl-note">Secure SSL Encrypted Connection</div>
+      </div>
+
+      <div class="auth2-right">
+        <h2>Verify Your Email</h2>
+        <p class="sub" id="emailLine">Enter the 6-digit code sent to your email</p>
+
+        <div id="devNote" class="success-box" style="display:none; font-size:12px;"></div>
+        <div id="errorBox" class="error-box" style="display:none;"></div>
+        <div id="successBox" class="success-box" style="display:none;">Email verified!</div>
+
+        <form id="verifyForm">
+          <div class="otp-row">
+            <input class="otp-box" maxlength="1" inputmode="numeric" data-idx="0" />
+            <input class="otp-box" maxlength="1" inputmode="numeric" data-idx="1" />
+            <input class="otp-box" maxlength="1" inputmode="numeric" data-idx="2" />
+            <input class="otp-box" maxlength="1" inputmode="numeric" data-idx="3" />
+            <input class="otp-box" maxlength="1" inputmode="numeric" data-idx="4" />
+            <input class="otp-box" maxlength="1" inputmode="numeric" data-idx="5" />
+          </div>
+          <p style="font-size:12px; color:#6b7280; margin-bottom:24px;" id="expiryLine">Code expires in 04:52</p>
+
+          <button type="submit" id="submitBtn" class="auth2-submit-btn">Verify Email</button>
+        </form>
+
+        <div class="auth2-footer-line">Did not receive a code? <a href="#" id="resendBtn">Resend</a></div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="auth2-dark-footer">
+    <div class="inner">
+      <span>© 2026 ByteBack Management System. Official Government Portal.</span>
+      <div class="links">
+        <a href="privacy-consent.html">Privacy Policy</a>
+        <a href="terms.html">Terms of Use</a>
+        <a href="#">Security Disclosure</a>
+        <a href="#">Help Center</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/api.js"></script>
+  <script>
+    // Dev convenience: no real email service is wired up yet, so the code
+    // is shown here directly for local testing.
+    const devCode = sessionStorage.getItem('dev_verification_code');
+    if (devCode) {
+      const devNote = document.getElementById('devNote');
+      devNote.textContent = `Dev mode: your verification code is ${devCode} (no email service connected yet).`;
+      devNote.style.display = 'block';
+    }
+
+    api.me().then(data => {
+      document.getElementById('emailLine').textContent = `Enter the 6-digit code sent to ${data.user.email}`;
+    }).catch(() => { window.location.href = 'login.html'; });
+
+    // OTP box behavior: auto-advance, backspace-back, paste support
+    const boxes = Array.from(document.querySelectorAll('.otp-box'));
+    boxes.forEach((box, i) => {
+      box.addEventListener('input', () => {
+        box.value = box.value.replace(/[^0-9]/g, '');
+        if (box.value && boxes[i + 1]) boxes[i + 1].focus();
+      });
+      box.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !box.value && boxes[i - 1]) boxes[i - 1].focus();
+      });
+      box.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const digits = (e.clipboardData.getData('text') || '').replace(/[^0-9]/g, '').split('');
+        digits.forEach((d, di) => { if (boxes[i + di]) boxes[i + di].value = d; });
+      });
+    });
+
+    // Countdown timer
+    let secondsLeft = 292; // 04:52
+    const expiryLine = document.getElementById('expiryLine');
+    const timer = setInterval(() => {
+      secondsLeft--;
+      if (secondsLeft <= 0) { clearInterval(timer); expiryLine.textContent = 'Code expired'; return; }
+      const m = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
+      const s = String(secondsLeft % 60).padStart(2, '0');
+      expiryLine.textContent = `Code expires in ${m}:${s}`;
+    }, 1000);
+
+    document.getElementById('verifyForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errorBox = document.getElementById('errorBox');
+      const successBox = document.getElementById('successBox');
+      const submitBtn = document.getElementById('submitBtn');
+      errorBox.style.display = 'none';
+
+      const code = boxes.map(b => b.value).join('');
+      if (code.length !== 6) {
+        errorBox.textContent = 'Enter all 6 digits.';
+        errorBox.style.display = 'block';
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Verifying...';
+      try {
+        await api.verifyEmail(code);
+        successBox.style.display = 'block';
+        sessionStorage.removeItem('dev_verification_code');
+        setTimeout(() => { window.location.href = 'registration-success.html'; }, 800);
+      } catch (err) {
+        errorBox.textContent = err.message;
+        errorBox.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Verify Email';
+      }
+    });
+
+    document.getElementById('resendBtn').addEventListener('click', async (e) => {
+      e.preventDefault();
+      const errorBox = document.getElementById('errorBox');
+      errorBox.style.display = 'none';
+      try {
+        const data = await api.resendVerification();
+        secondsLeft = 300;
+        if (data.devVerificationCode) {
+          sessionStorage.setItem('dev_verification_code', data.devVerificationCode);
+          const devNote = document.getElementById('devNote');
+          devNote.textContent = `Dev mode: your new verification code is ${data.devVerificationCode}.`;
+          devNote.style.display = 'block';
+        }
+      } catch (err) {
+        errorBox.textContent = err.message;
+        errorBox.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Evidence Review — ByteBack</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body style="margin:0;">
+  <div id="staffShell"></div>
+
+  <script src="js/api.js"></script>
+  <script>
+    const caseId = getSelectedCaseId();
+    function fileIcon(name) { return /\.(png|jpe?g|gif|webp)$/i.test(name) ? '🖼' : '📄'; }
+    function fileType(name) { return /\.(png|jpe?g|gif|webp)$/i.test(name) ? 'Image' : 'Attachment'; }
+    function formatSize(bytes) {
+      if (!bytes) return '—';
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+    function renderError(message) {
+      const content = document.getElementById('staffContent');
+      if (content) {
+        content.innerHTML = `<div class="error-box">${message}</div>`;
+      } else {
+        document.body.innerHTML = `<div class="error-box" style="margin:24px;">${message}</div>`;
+      }
+    }
+    function getEvidenceMeta(item) {
+      const name = typeof item === 'string' ? item : (item.name || 'Attachment');
+      const type = typeof item === 'string' ? '' : (item.type || '');
+      const dataUrl = typeof item === 'string' ? '' : (item.dataUrl || item.url || '');
+      const ext = name.split('.').pop().toLowerCase();
+      const previewType = dataUrl
+        ? (type.startsWith('image/') || ['png','jpg','jpeg','gif','webp'].includes(ext) ? 'image'
+          : (type === 'application/pdf' || ext === 'pdf' ? 'pdf' : 'other'))
+        : 'none';
+      return {
+        name: name,
+        size: typeof item === 'string' ? 0 : (item.size || 0),
+        type: type,
+        dataUrl: dataUrl,
+        previewType: previewType
+      };
+    }
+
+    (async () => {
+      let me;
+      try {
+        me = await renderStaffShell({
+          role: 'investigator',
+          activeHref: 'investigator-evidence.html',
+          title: 'Evidence Review',
+          subtitle: 'Loading...'
+        });
+      } catch (err) {
+        renderError('Unable to render staff shell. ' + (err.message || 'Please refresh and try again.'));
+        return;
+      }
+      if (!me) return;
+      if (!caseId) {
+        renderError('No case specified. Open a case from Assigned Cases.');
+        return;
+      }
+
+      try {
+        const [data, timeline] = await Promise.all([
+          api.invWorkspace(caseId),
+          api.invTimeline(caseId)
+        ]);
+        const c = data.complaint;
+        if (!c) {
+          renderError('Unable to load complaint details.');
+          return;
+        }
+
+        document.querySelector('.staff-topbar h1').textContent = `Evidence Review — ${c.referenceNumber}`;
+        document.querySelector('.staff-topbar p').textContent = `${(c.evidence||[]).length} files submitted by complainant · ${categoryLabel(c.category)}`;
+
+        const evidence = (c.evidence || []).map(getEvidenceMeta);
+
+        document.getElementById('staffContent').innerHTML = `
+          <a href="investigator-workspace.html?id=${c.id}" class="flow-btn-back" style="margin-bottom:16px; display:inline-block;">← Back to Workspace</a>
+          <div class="evidence-grid3">
+            ${evidence.length === 0 ? '<p style="color:#9ca3af; grid-column:1/-1;">No evidence was attached to this complaint.</p>' : evidence.map(f => {
+              let preview;
+              if (f.previewType === 'image') {
+                preview = `<img src="${f.dataUrl}" alt="${f.name}" style="width:100%; height:100%; object-fit:cover;" />`;
+              } else if (f.previewType === 'pdf') {
+                preview = `<object data="${f.dataUrl}" type="application/pdf" width="100%" height="100%">PDF preview not available.</object>`;
+              } else {
+                preview = `<div style="font-size:32px;">${fileIcon(f.name)}</div>`;
+              }
+              return `
+                <div class="evidence-card">
+                  <div class="evidence-preview" style="padding:12px; overflow:hidden;">${preview}</div>
+                  <div class="evidence-card-body">
+                    <div class="fname">${f.name}</div>
+                    <div class="fmeta">${fileType(f.name)}${f.size ? ' · ' + formatSize(f.size) : ''}</div>
+                    <div class="evidence-badge" style="background:#e6f8ee; color:#16a34a;">Submitted</div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+
+          <div class="ws-card">
+            <h3>Chain of Custody Log</h3>
+            <div class="chain-row">
+              <div class="ts">${new Date(c.createdAt).toLocaleDateString('en-US',{month:'short',day:'2-digit',year:'numeric'})} · ${new Date(c.createdAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</div>
+              <div class="desc">Evidence uploaded by complainant ${c.submittedBy ? c.submittedBy.fullName : 'Unknown'}</div>
+              <div class="who">System</div>
+            </div>
+            ${timeline.logs.map(l => `
+              <div class="chain-row">
+                <div class="ts">${new Date(l.createdAt).toLocaleDateString('en-US',{month:'short',day:'2-digit',year:'numeric'})} · ${new Date(l.createdAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</div>
+                <div class="desc">Status changed to "${l.status.replace('_',' ')}"${l.note ? ' — ' + l.note : ''}</div>
+                <div class="who">${l.changedBy ? l.changedBy.fullName : 'System'}</div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } catch (e) {
+        renderError('Unable to load evidence. ' + (e.message || 'Please try again later.'));
+      }
+    })();
+  </script>
+</body>
+</html>

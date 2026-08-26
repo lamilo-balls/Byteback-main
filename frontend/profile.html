@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Profile — ByteBack</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+</head>
+<body style="background:#f8f9fa;">
+  <div id="staffShell"></div>
+  <div id="appHeader"></div>
+
+  <main class="flow-wrap" id="pageMain">
+    <h1 class="flow-title" style="margin-bottom:24px;">My Profile</h1>
+
+    <div class="profile-top-card">
+      <div class="profile-avatar-lg" id="avatarInitials"></div>
+      <div>
+        <div class="profile-top-name" id="topName"></div>
+        <div class="profile-top-email" id="topEmail"></div>
+        <div id="verifiedBadgeWrap"></div>
+      </div>
+    </div>
+
+    <div id="profileErrorBox" class="error-box" style="max-width:680px; display:none;"></div>
+    <div id="profileSuccessBox" class="success-box" style="max-width:680px; display:none;">Profile updated.</div>
+
+    <form id="profileForm" class="profile-card">
+      <h3>Personal Information</h3>
+      <div class="profile-row2">
+        <div class="flow-field">
+          <label for="fullName">Full Name</label>
+          <input id="fullName" required />
+        </div>
+        <div class="flow-field">
+          <label for="phone">Phone Number</label>
+          <input id="phone" type="tel" />
+        </div>
+      </div>
+      <div class="flow-field">
+        <label for="email">Email Address</label>
+        <input id="email" disabled style="background:#f1f5f9;" />
+      </div>
+      <div class="flow-field">
+        <label for="address">Residential Address</label>
+        <input id="address" />
+      </div>
+      <button type="submit" id="saveProfileBtn" class="profile-btn-primary">Save Changes</button>
+    </form>
+
+    <div id="passwordErrorBox" class="error-box" style="max-width:680px; display:none;"></div>
+    <div id="passwordSuccessBox" class="success-box" style="max-width:680px; display:none;">Password updated.</div>
+
+    <form id="passwordForm" class="profile-card">
+      <h3>Security</h3>
+      <div class="profile-row2">
+        <div class="flow-field">
+          <label for="currentPassword">Current Password</label>
+          <input id="currentPassword" type="password" placeholder="••••••••" required />
+        </div>
+        <div class="flow-field" style="position:relative;">
+          <label for="newPassword">New Password</label>
+          <input id="newPassword" type="password" placeholder="••••••••" required minlength="8" />
+          <button type="button" id="passwordToggleBtn" class="toggle-pw" aria-label="Show passwords" style="position:absolute; right:16px; top:50%; transform:translateY(-50%); background:none; border:none; color:#9ca3af; cursor:pointer;"><i class="fa-solid fa-eye"></i></button>
+        </div>
+      </div>
+      <button type="submit" id="savePasswordBtn" class="profile-btn-outline">Update Password</button>
+    </form>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script>
+    (async () => {
+      let me;
+      try {
+        me = (await api.me()).user;
+      } catch (e) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      if (me.role === 'investigator' || me.role === 'supervisor' || me.role === 'admin') {
+        await renderStaffShell({
+          role: me.role,
+          activeHref: 'profile.html',
+          title: 'Profile',
+          subtitle: 'Manage your account details'
+        });
+        document.getElementById('staffContent').appendChild(document.getElementById('pageMain'));
+      } else {
+        await renderAppHeader('');
+      }
+
+      const initials = me.fullName.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase();
+      document.getElementById('avatarInitials').textContent = initials;
+      document.getElementById('topName').textContent = me.fullName;
+      document.getElementById('topEmail').textContent = me.email;
+      document.getElementById('verifiedBadgeWrap').innerHTML = me.isVerified
+        ? '<span class="verified-badge">✓ Verified Account</span>'
+        : '<span class="verified-badge" style="background:#fdf3e0; color:#c17d09;">Not Verified — <a href="email-verification.html" style="color:#c17d09;">verify now</a></span>';
+
+      document.getElementById('fullName').value = me.fullName;
+      document.getElementById('phone').value = me.phone || '';
+      document.getElementById('email').value = me.email;
+      document.getElementById('address').value = me.address || '';
+      originalProfile = { fullName: me.fullName, phone: me.phone || '', address: me.address || '' };
+    })();
+
+    let originalProfile = null;
+
+    document.getElementById('profileForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errorBox = document.getElementById('profileErrorBox');
+      const successBox = document.getElementById('profileSuccessBox');
+      const btn = document.getElementById('saveProfileBtn');
+      errorBox.style.display = 'none';
+      successBox.style.display = 'none';
+
+      const payload = {
+        fullName: document.getElementById('fullName').value.trim(),
+        phone: document.getElementById('phone').value.trim(),
+        address: document.getElementById('address').value.trim()
+      };
+
+      if (originalProfile && payload.fullName === originalProfile.fullName && payload.phone === (originalProfile.phone || '') && payload.address === (originalProfile.address || '')) {
+        successBox.textContent = 'No changes were made.';
+        successBox.style.display = 'block';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+
+      try {
+        await api.updateProfile(payload);
+        successBox.textContent = 'Profile updated.';
+        successBox.style.display = 'block';
+        originalProfile = { ...payload };
+      } catch (err) {
+        errorBox.textContent = err.message;
+        errorBox.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Changes';
+      }
+    });
+
+    document.getElementById('passwordForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errorBox = document.getElementById('passwordErrorBox');
+      const successBox = document.getElementById('passwordSuccessBox');
+      const btn = document.getElementById('savePasswordBtn');
+      errorBox.style.display = 'none';
+      successBox.style.display = 'none';
+      btn.disabled = true;
+      btn.textContent = 'Updating...';
+
+      try {
+        await api.changePassword({
+          currentPassword: document.getElementById('currentPassword').value,
+          newPassword: document.getElementById('newPassword').value
+        });
+        successBox.style.display = 'block';
+        document.getElementById('passwordForm').reset();
+      } catch (err) {
+        errorBox.textContent = err.message;
+        errorBox.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Update Password';
+      }
+    });
+
+    // Toggle visibility for both password fields in profile security form
+    (function setupProfilePasswordToggle(){
+      const btn = document.getElementById('passwordToggleBtn');
+      if (!btn) return;
+      const icon = btn.querySelector('i');
+      btn.addEventListener('click', () => {
+        const current = document.getElementById('currentPassword');
+        const next = document.getElementById('newPassword');
+        const show = current.type === 'password' || next.type === 'password';
+        current.type = show ? 'text' : 'password';
+        next.type = show ? 'text' : 'password';
+        if (icon) icon.className = show ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
+        btn.setAttribute('aria-label', show ? 'Hide passwords' : 'Show passwords');
+      });
+    })();
+  </script>
+</body>
+</html>

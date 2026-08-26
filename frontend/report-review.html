@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Review Your Complaint — ByteBack</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body style="background:#f8f9fa;">
+  <div id="appHeader"></div>
+
+  <main class="flow-wrap">
+    <div id="stepIndicator"></div>
+    <h1 class="flow-title">Review Your Complaint</h1>
+    <p class="flow-sub">Please confirm all details are accurate before submitting.</p>
+
+    <div id="errorBox" class="error-box" style="max-width:680px; display:none;"></div>
+
+    <div class="rcard">
+      <div class="rcard-header"><h3>Category</h3><a href="report-category.html">Edit</a></div>
+      <div class="rcard-body">
+        <div class="flow-cat-badge" id="catBadge" style="margin-bottom:0;"></div>
+      </div>
+    </div>
+
+    <div class="rcard">
+      <div class="rcard-header"><h3>Complaint Details</h3><a href="report-details.html">Edit</a></div>
+      <div class="rcard-body">
+        <div class="rcard-kv"><div class="k">Title</div><div class="v" id="rTitle"></div></div>
+        <div class="rcard-kv"><div class="k">Date of Incident</div><div class="v" id="rDate"></div></div>
+        <div class="rcard-kv"><div class="k">Platform</div><div class="v" id="rPlatform"></div></div>
+        <div class="rcard-kv"><div class="k">Suspect Info</div><div class="v" id="rSuspect"></div></div>
+        <div class="rcard-kv"><div class="k">Estimated Loss</div><div class="v" id="rLoss"></div></div>
+        <div class="rcard-desc-label">DESCRIPTION</div>
+        <div class="rcard-desc-text" id="rDescription"></div>
+      </div>
+    </div>
+
+    <div class="rcard">
+      <div class="rcard-header"><h3 id="evidenceHeader">Evidence</h3><a href="report-evidence.html">Edit</a></div>
+      <div class="rcard-body" id="evidenceList"></div>
+    </div>
+
+    <div class="certify-row">
+      <input type="checkbox" id="certifyCheck" />
+      <label for="certifyCheck">I certify that the information provided is true and accurate to the best of my knowledge, and understand that filing a false report may result in legal consequences.</label>
+    </div>
+
+    <div class="flow-actions">
+      <a href="report-evidence.html" class="flow-btn-back">← Back</a>
+      <button id="submitBtn" class="flow-btn-next" style="width:280px;">✓ Submit Complaint</button>
+    </div>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script>
+    const category = sessionStorage.getItem('report_category');
+    if (!category) window.location.href = 'report-category.html';
+
+    function fileIcon(name) { return /\.(png|jpe?g|gif|webp)$/i.test(name) ? '🖼' : '📄'; }
+    function formatSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    (async () => {
+      const me = await renderAppHeader('file');
+      if (!me) return;
+      document.getElementById('stepIndicator').innerHTML = renderStepIndicator(3);
+
+      document.getElementById('catBadge').textContent = sessionStorage.getItem('report_categoryLabel');
+      document.getElementById('rTitle').textContent = sessionStorage.getItem('report_title');
+      document.getElementById('rDate').textContent = sessionStorage.getItem('report_incidentDate') || '—';
+      document.getElementById('rPlatform').textContent = sessionStorage.getItem('report_platform') || '—';
+      document.getElementById('rSuspect').textContent = sessionStorage.getItem('report_suspectInfo') || '—';
+      const loss = sessionStorage.getItem('report_estimatedLoss');
+      document.getElementById('rLoss').textContent = loss ? `₱${Number(loss).toLocaleString()}` : '—';
+      document.getElementById('rDescription').textContent = sessionStorage.getItem('report_description');
+
+      const files = JSON.parse(sessionStorage.getItem('report_evidence_files') || '[]');
+      document.getElementById('evidenceHeader').textContent = `Evidence (${files.length})`;
+      document.getElementById('evidenceList').innerHTML = files.length
+        ? files.map(f => `
+            <div class="file-row">
+              <div class="file-row-icon">${fileIcon(f.name || f)}</div>
+              <div class="file-row-main"><div class="fname">${f.name || f}</div><div class="fsize">${formatSize(f.size || 0)}</div></div>
+            </div>
+          `).join('')
+        : '<p style="font-size:13px; color:#9ca3af; margin:0;">No evidence attached.</p>';
+    })();
+
+    document.getElementById('submitBtn').addEventListener('click', async () => {
+      const errorBox = document.getElementById('errorBox');
+      const submitBtn = document.getElementById('submitBtn');
+      errorBox.style.display = 'none';
+
+      if (!document.getElementById('certifyCheck').checked) {
+        errorBox.textContent = 'Please certify that the information provided is accurate.';
+        errorBox.style.display = 'block';
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Submitting...';
+
+      try {
+        const loss = sessionStorage.getItem('report_estimatedLoss');
+        const data = await api.createComplaint({
+          category: sessionStorage.getItem('report_category'),
+          title: sessionStorage.getItem('report_title'),
+          description: sessionStorage.getItem('report_description'),
+          incidentDate: sessionStorage.getItem('report_incidentDate'),
+          platform: sessionStorage.getItem('report_platform'),
+          suspectInfo: sessionStorage.getItem('report_suspectInfo'),
+          estimatedLoss: loss ? Number(loss) : null,
+          evidence: JSON.parse(sessionStorage.getItem('report_evidence') || '[]')
+        });
+
+        ['report_category','report_categoryLabel','report_title','report_description','report_incidentDate',
+         'report_platform','report_suspectInfo','report_estimatedLoss','report_evidence','report_evidence_files']
+          .forEach(k => sessionStorage.removeItem(k));
+
+        sessionStorage.setItem('last_reference_number', data.complaint.referenceNumber);
+        window.location.href = 'report-success.html';
+      } catch (err) {
+        errorBox.textContent = err.message;
+        errorBox.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = '✓ Submit Complaint';
+      }
+    });
+  </script>
+</body>
+</html>

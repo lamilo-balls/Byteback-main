@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Notification Center — ByteBack</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body style="margin:0;">
+  <div id="staffShell"></div>
+
+  <script src="js/api.js"></script>
+  <script>
+    // Note: "System" and "Security" notifications here are derived from real
+    // audit/security log entries (role changes, new staff accounts, failed
+    // logins) rather than fabricated system alerts like server load or
+    // scheduled backups, since we don't have infrastructure monitoring wired
+    // up. "Reports" stays empty until report-generation events are logged.
+    let items = [];
+    let activeTab = 'all';
+
+    function timeAgo(dateStr) {
+      const mins = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000);
+      if (mins < 1) return 'just now';
+      if (mins < 60) return `${mins} minute${mins===1?'':'s'} ago`;
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24) return `${hrs} hour${hrs===1?'':'s'} ago`;
+      return `${Math.floor(hrs/24)} day${Math.floor(hrs/24)===1?'':'s'} ago`;
+    }
+
+    function render() {
+      const list = activeTab === 'all' ? items : items.filter(i => i.category === activeTab);
+      const card = document.getElementById('notifCard');
+      if (list.length === 0) {
+        card.innerHTML = '<div class="empty-state">Nothing here yet.</div>';
+        return;
+      }
+      card.innerHTML = list.map(i => `
+        <div class="notif-row ${i.unread ? 'unread' : ''}">
+          <div class="notif-icon" style="background:${i.iconBg}; color:${i.iconColor};">${i.icon}</div>
+          <div class="notif-main">
+            <div class="ntitle">${i.title}</div>
+            <div class="nmsg">${i.detail}</div>
+            <div class="ntime">${timeAgo(i.createdAt)}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('notif-tab')) {
+        activeTab = e.target.dataset.tab;
+        document.querySelectorAll('.notif-tab').forEach(t => t.classList.remove('active'));
+        e.target.classList.add('active');
+        render();
+      }
+    });
+
+    (async () => {
+      const me = await renderStaffShell({
+        role: 'admin',
+        activeHref: 'admin-notifications.html',
+        title: 'Notification Center',
+        subtitle: 'System-wide alerts requiring administrative attention'
+      });
+      if (!me) return;
+
+      document.querySelector('.staff-topbar').insertAdjacentHTML('beforeend', `<button class="add-user-btn" style="position:absolute; top:24px; right:32px;" disabled title="All shown events are already logged">Mark all as read</button>`);
+      document.querySelector('.staff-topbar').style.position = 'relative';
+
+      document.getElementById('staffContent').innerHTML = `
+        <div class="notif-tabs">
+          <button class="notif-tab active" data-tab="all">All</button>
+          <button class="notif-tab" data-tab="security">Security</button>
+          <button class="notif-tab" data-tab="system">System</button>
+          <button class="notif-tab" data-tab="reports">Reports</button>
+        </div>
+        <div class="notif-card" id="notifCard" style="max-width:760px;"></div>
+      `;
+
+      try {
+        const [auditData, securityData] = await Promise.all([api.admAuditLogs(), api.admSecurityLogs()]);
+
+        const systemItems = auditData.logs.map(l => ({
+          category: 'system',
+          icon: l.action === 'user_created' ? '🔒' : '⚙',
+          iconBg: '#fdf3e0', iconColor: '#c17d09',
+          title: l.action === 'user_created' ? 'New staff account created' : (l.action === 'role_changed' ? 'User role changed' : 'Complaint status overridden'),
+          detail: l.details || '',
+          createdAt: l.createdAt,
+          unread: false
+        }));
+
+        const securityItems = securityData.logs.filter(l => l.action === 'login_failed').map(l => ({
+          category: 'security',
+          icon: '⚠',
+          iconBg: '#fbeaea', iconColor: '#d1352b',
+          title: 'Failed login attempt',
+          detail: l.details || '',
+          createdAt: l.createdAt,
+          unread: true
+        }));
+
+        items = [...systemItems, ...securityItems].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        render();
+      } catch (e) {
+        document.getElementById('notifCard').innerHTML = `<div class="error-box">${e.message}</div>`;
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Update Investigation Status — ByteBack</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body style="margin:0;">
+  <div id="staffShell"></div>
+
+  <script src="js/api.js"></script>
+  <script>
+    const caseId = getSelectedCaseId();
+
+    // The Figma design shows 4 options; mapped onto our actual status enum:
+    //   Under Investigation          -> investigating
+    //   Additional Info Requested    -> under_review
+    //   Resolved                     -> resolved
+    //   Closed                       -> closed
+    const STATUS_OPTIONS = [
+      { value: 'investigating', label: 'Under Investigation' },
+      { value: 'under_review', label: 'Additional Information Requested' },
+      { value: 'resolved', label: 'Resolved' },
+      { value: 'closed', label: 'Closed' }
+    ];
+
+    (async () => {
+      const me = await renderStaffShell({
+        role: 'investigator',
+        activeHref: 'investigator-workspace.html',
+        title: 'Update Investigation Status',
+        subtitle: 'Loading...'
+      });
+      if (!me) return;
+      if (!caseId) {
+        document.getElementById('staffContent').innerHTML = '<div class="error-box">No case specified.</div>';
+        return;
+      }
+
+      let complaint;
+      try {
+        const data = await api.invWorkspace(caseId);
+        complaint = data.complaint;
+      } catch (e) {
+        document.getElementById('staffContent').innerHTML = `<div class="error-box">${e.message}</div>`;
+        return;
+      }
+
+      document.querySelector('.staff-topbar p').textContent = `${complaint.referenceNumber} · ${categoryLabel(complaint.category)}`;
+
+      document.getElementById('staffContent').innerHTML = `
+        <div class="ws-card" style="max-width:640px;">
+          <h3>Change Status</h3>
+          <div id="statusOptions">
+            ${STATUS_OPTIONS.map((opt, i) => `
+              <label class="status-radio-opt ${opt.value === complaint.status ? 'selected' : ''}" data-value="${opt.value}">
+                <input type="radio" name="statusOpt" value="${opt.value}" ${opt.value === complaint.status ? 'checked' : ''} />
+                <span class="label">${opt.label}</span>
+              </label>
+            `).join('')}
+          </div>
+
+          <label style="display:block; font-size:11px; font-weight:700; color:#1f2937; margin:20px 0 8px;">REMARKS FOR COMPLAINANT</label>
+          <textarea id="remarks" class="ws-note-input" style="min-height:110px;" placeholder="Explain what changed and what happens next..."></textarea>
+
+          <div class="notify-check-row">
+            <input type="checkbox" id="notifyCheck" checked />
+            <label for="notifyCheck">Notify complainant of this status update</label>
+          </div>
+
+          <div id="errorBox" class="error-box" style="display:none;"></div>
+
+          <div style="display:flex; gap:16px;">
+            <a href="investigator-workspace.html?id=${caseId}" class="flow-btn-back" style="width:150px; text-align:center;">Cancel</a>
+            <button id="saveBtn" class="flow-btn-next" style="width:220px;">✓ Update Status</button>
+          </div>
+        </div>
+      `;
+
+      document.querySelectorAll('.status-radio-opt').forEach(opt => {
+        opt.addEventListener('click', () => {
+          document.querySelectorAll('.status-radio-opt').forEach(o => o.classList.remove('selected'));
+          opt.classList.add('selected');
+          opt.querySelector('input').checked = true;
+        });
+      });
+
+      document.getElementById('saveBtn').addEventListener('click', async () => {
+        const errorBox = document.getElementById('errorBox');
+        const saveBtn = document.getElementById('saveBtn');
+        errorBox.style.display = 'none';
+
+        const selected = document.querySelector('input[name="statusOpt"]:checked');
+        if (!selected) {
+          errorBox.textContent = 'Choose a status.';
+          errorBox.style.display = 'block';
+          return;
+        }
+
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+        try {
+          await api.invUpdateStatus(caseId, selected.value, document.getElementById('remarks').value);
+          window.location.href = 'investigator-workspace.html?id=' + caseId;
+        } catch (e) {
+          errorBox.textContent = e.message;
+          errorBox.style.display = 'block';
+          saveBtn.disabled = false;
+          saveBtn.textContent = '✓ Update Status';
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

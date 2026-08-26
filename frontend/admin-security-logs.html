@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Security Logs — ByteBack</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body style="margin:0;">
+  <div id="staffShell"></div>
+
+  <script src="js/api.js"></script>
+  <script>
+    (async () => {
+      const me = await renderStaffShell({
+        role: 'admin',
+        activeHref: 'admin-security-logs.html',
+        title: 'Security Logs',
+        subtitle: 'Authentication events and system-level security monitoring'
+      });
+      if (!me) return;
+
+      try {
+        const data = await api.admSecurityLogs();
+
+        document.getElementById('staffContent').innerHTML = `
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-top-row"><div class="kpi-icon" style="background:#fbeaea; color:#d1352b;">⚠</div></div>
+              <div class="kpi-value">${data.flaggedLast24h}</div>
+              <div class="kpi-label">Flagged Events (24h)</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-top-row"><div class="kpi-icon" style="background:#fdf3e0; color:#c17d09;">🔒</div></div>
+              <div class="kpi-value">${data.failedLast7d}</div>
+              <div class="kpi-label">Failed Logins (7 days)</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-top-row"><div class="kpi-icon" style="background:#eef1f5; color:#4c576f;">🚫</div></div>
+              <div class="kpi-value">${data.suspendedAccounts}</div>
+              <div class="kpi-label">Suspended Accounts</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-top-row"><div class="kpi-icon" style="background:#e6f8ee; color:#16a34a;">✓</div></div>
+              <div class="kpi-value">${data.successLast7d}</div>
+              <div class="kpi-label">Successful Logins (7 days)</div>
+            </div>
+          </div>
+
+          <div class="staff-table-card">
+            <h3 style="margin-bottom:16px;">Recent Login Events</h3>
+            <table class="staff-data-table">
+              <thead><tr><th>Timestamp</th><th>Event</th><th>Account</th><th>IP Address</th><th>Severity</th></tr></thead>
+              <tbody>
+                ${data.logs.length === 0 ? '<tr><td colspan="5" style="color:#9ca3af; padding:20px 0;">No login events yet.</td></tr>' : data.logs.map(l => {
+                  const isFailed = l.action === 'login_failed';
+                  const sevBg = isFailed ? '#fbeaea' : '#e6f8ee';
+                  const sevColor = isFailed ? '#d1352b' : '#16a34a';
+                  const sevLabel = isFailed ? 'High' : 'Low';
+                  return `
+                    <tr>
+                      <td style="color:#6b7280;">${new Date(l.createdAt).toLocaleDateString('en-US',{month:'short',day:'2-digit',year:'numeric'})} ${new Date(l.createdAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</td>
+                      <td style="font-weight:600; color:#1f2937;">${isFailed ? 'Failed login attempt' : 'Successful login'}</td>
+                      <td style="color:#4c576f;">${l.actor ? l.actor.email : (l.details || 'Unknown')}</td>
+                      <td style="color:#6b7280;">${l.ip || '—'}</td>
+                      <td><span class="status-pill" style="background:${sevBg}; color:${sevColor};">${sevLabel}</span></td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      } catch (e) {
+        document.getElementById('staffContent').innerHTML = `<div class="error-box">${e.message}</div>`;
+      }
+    })();
+  </script>
+</body>
+</html>

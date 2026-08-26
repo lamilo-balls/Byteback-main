@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ByteBack — Securely Report Cybercrime Online</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container">
+      <a href="index.html" class="brand">
+        <span class="brand-icon">🛡</span> ByteBack
+      </a>
+      <nav class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="index.html#categories">Categories</a>
+      </nav>
+      <div class="nav-actions">
+        <a href="login.html">Login</a>
+        <a href="register.html" class="btn-nav-primary">Register</a>
+      </div>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="container" style="display:flex; gap:48px; align-items:center; flex-wrap:wrap;">
+      <div style="flex:1; min-width:320px;">
+        <span class="hero-badge">● Official Government Portal</span>
+        <h1>Securely Report<br /><span>Cybercrime</span> Online</h1>
+        <p>Protecting citizens in the digital age. File a report, track your complaint, and get the support you need from our dedicated cyber task force.</p>
+        <div class="hero-actions">
+          <a href="report-category.html" class="btn btn-primary">File a Complaint</a>
+          <a href="#track" class="btn btn-secondary">Track Complaint</a>
+        </div>
+      </div>
+
+      <div class="card" id="track" style="width:340px; background:rgba(255,255,255,0.95);">
+        <h3 style="margin-top:0; color:#2563eb;">Quick Tracking</h3>
+        <div class="field">
+          <label for="refInput">Reference Number</label>
+          <input id="refInput" placeholder="e.g. CR-2026-8492" />
+        </div>
+        <button id="trackBtn" class="btn btn-dark btn-block">Check Status</button>
+        <p id="trackResult" style="font-size:13px; margin-top:12px;"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="categories">
+    <div class="container">
+      <h2 class="section-title">Reporting Categories</h2>
+      <p class="section-sub">Select the category that best describes the incident. Each category requires specific information to assist our investigation.</p>
+      <div class="grid-2" id="categoryGrid"></div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="container">© 2026 ByteBack / CyberReport Management System. Official Government Portal.</div>
+  </footer>
+
+  <script src="js/api.js"></script>
+  <script>
+    const grid = document.getElementById('categoryGrid');
+    CATEGORIES.forEach((c) => {
+      const div = document.createElement('div');
+      div.className = 'card cat-card';
+      div.innerHTML = `
+        <div class="cat-icon">●</div>
+        <h3>${c.label}</h3>
+        <p>${c.desc}</p>
+        <a class="cat-link" href="report-category.html">Report Issue →</a>
+      `;
+      grid.appendChild(div);
+    });
+
+    document.getElementById('trackBtn').addEventListener('click', async () => {
+      const ref = document.getElementById('refInput').value.trim();
+      const resultEl = document.getElementById('trackResult');
+      if (!ref) return;
+      resultEl.textContent = 'Checking...';
+      try {
+        const data = await api.trackComplaint(ref);
+        resultEl.textContent = `Status: ${data.status.replace('_',' ')} — Category: ${categoryLabel(data.category)}`;
+        resultEl.style.color = 'green';
+      } catch (e) {
+        resultEl.textContent = e.message;
+        resultEl.style.color = 'crimson';
+      }
+    });
+  </script>
+</body>
+</html>
